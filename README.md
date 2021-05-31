@@ -18,9 +18,7 @@
 
 <br />
 
-**Corteza discovery searcher** is the ...
-
-**DevNote**: @todo...
+**Corteza discovery searcher** is interface to indexed Corteza resources. It handles (es) document access control, query and result conversion.
 
 <br />
 
