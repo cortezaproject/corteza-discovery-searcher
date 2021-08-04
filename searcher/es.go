@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/elastic/go-elasticsearch/v7"
 	"github.com/elastic/go-elasticsearch/v7/esapi"
 	"github.com/go-chi/jwtauth"
@@ -37,20 +38,27 @@ type (
 				Must []interface{} `json:"must"`
 
 				// filter context
-				Filter  []interface{} `json:"filter,omitempty""`
+				Filter  []interface{} `json:"filter,omitempty"`
 				MustNot []interface{} `json:"must_not,omitempty"`
 			} `json:"bool"`
 		} `json:"query"`
 
-		Aggregations map[string]esSearchAggr `json:"aggs,omitempty"`
+		Aggregations EsSearchAggrTerms `json:"aggs,omitempty"`
 	}
 
 	esSearchAggrTerm struct {
 		Field string `json:"field"`
+		Size  int    `json:"size"`
+	}
+
+	esSearchAggrComposite struct {
+		Sources interface{} `json:"sources"` // it can be esSearchAggrTerm,.. (Histogram, Date histogram, GeoTile grid)
+		Size    int         `json:"size"`
 	}
 
 	esSearchAggr struct {
 		Terms esSearchAggrTerm `json:"terms"`
+		//Composite *esSearchAggrComposite `json:"composite"`
 	}
 
 	esSearchResponse struct {
@@ -79,6 +87,7 @@ type (
 		query        string
 		aggregations []string
 		dumpRaw      bool
+		size         int
 	}
 )
 
@@ -143,6 +152,7 @@ func search(ctx context.Context, esc *elasticsearch.Client, log *zap.Logger, p s
 
 	query.Query.Bool.Must = []interface{}{index, sqs}
 
+	// Aggregations V1.0
 	if len(p.aggregations) > 0 {
 		query.Aggregations = make(map[string]esSearchAggr)
 
@@ -150,6 +160,11 @@ func search(ctx context.Context, esc *elasticsearch.Client, log *zap.Logger, p s
 			query.Aggregations[a] = esSearchAggr{esSearchAggrTerm{Field: a + ".keyword"}}
 		}
 	}
+
+	// Aggregations V2.0
+	//if len(p.aggregations) > 0 {
+	//	query.Aggregations = (Aggregations{}).encodeTerms(p.aggregations)
+	//}
 
 	if err := json.NewEncoder(&buf).Encode(query); err != nil {
 		return nil, fmt.Errorf("could not encode query: %q", err)
@@ -160,10 +175,14 @@ func search(ctx context.Context, esc *elasticsearch.Client, log *zap.Logger, p s
 		esc.Search.WithBody(&buf),
 		esc.Search.WithTrackTotalHits(true),
 		//esc.Search.WithScroll(),
-		esc.Search.WithSize(3),
+		esc.Search.WithSize(20),
 		//esc.Search.WithFrom(0), // paging (offset)
 		//esc.Search.WithExplain(true), // debug
 	}
+
+	//if p.size > 0 {
+	//	sReqArgs = append(sReqArgs, esc.Search.WithSize(p.size))
+	//}
 
 	if p.dumpRaw {
 		sReqArgs = append(
@@ -192,6 +211,8 @@ func search(ctx context.Context, esc *elasticsearch.Client, log *zap.Logger, p s
 		res.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
 		os.Stdout.Write(bodyBytes)
 	}
+
+	spew.Dump("res.Body: ", res.Body)
 
 	var sr = &esSearchResponse{}
 	if err = json.NewDecoder(res.Body).Decode(sr); err != nil {

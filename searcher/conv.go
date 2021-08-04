@@ -2,6 +2,7 @@ package searcher
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/spf13/cast"
 )
 
@@ -28,6 +29,12 @@ type (
 
 // conv converts results from the backend into corteza-discovery (jsonld-ish) format
 func conv(sr *esSearchResponse) (out *cdResults, err error) {
+	fmt.Printf("sr: %+v", sr)
+
+	if sr == nil {
+		return
+	}
+
 	out = &cdResults{}
 	out.Total.Value = sr.Hits.Total.Value
 	out.Total.TotalOp = sr.Hits.Total.Relation
@@ -45,6 +52,10 @@ hits:
 		case "system:user":
 			aux["@id"] = aux["userID"]
 			delete(aux, "userID")
+
+		case "compose:record":
+			aux["@id"] = aux["_id"]
+			delete(aux, "_id")
 
 		default:
 			continue hits

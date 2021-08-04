@@ -8,6 +8,7 @@ import (
 	"github.com/go-chi/chi"
 	"go.uber.org/zap"
 	"net/http"
+	"strconv"
 )
 
 var _ = spew.Dump
@@ -30,6 +31,7 @@ func Handlers(r chi.Router, log *zap.Logger, esc *elasticsearch.Client, api *api
 	r.Use()
 
 	r.Get("/healthcheck", h.Healthcheck)
+	r.Get("/sandbox", h.Sandbox)
 	r.Get("/", h.Search)
 	//r.Get("/suggest", h.Suggest)
 
@@ -52,12 +54,28 @@ func (h handlers) Healthcheck(w http.ResponseWriter, r *http.Request) {
 	_, _ = fmt.Fprintf(w, "healthy")
 }
 
+func (h handlers) Sandbox(w http.ResponseWriter, r *http.Request) {
+	p := "." + r.URL.Path
+	if p == "./" {
+		p = "./sandbox/index.html"
+	}
+	http.ServeFile(w, r, p)
+}
+
 func (h handlers) Search(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+	_ = r.ParseForm()
+
+	size := 0
+	if len(r.FormValue("size")) > 0 {
+		size, _ = strconv.Atoi(r.FormValue("size"))
+	}
 	results, err := search(r.Context(), h.esc, h.log, searchParams{
-		query:        r.URL.Query().Get("q"),
-		aggregations: nil,
-		dumpRaw:      r.URL.Query().Get("dump") != "",
+		query:        r.FormValue("q"),
+		aggregations: r.Form["aggs"],
+		//aggregations: nil,
+		size:    size,
+		dumpRaw: r.FormValue("dump") != "",
 	})
 
 	if err != nil {
@@ -69,5 +87,4 @@ func (h handlers) Search(w http.ResponseWriter, r *http.Request) {
 	} else if err = json.NewEncoder(w).Encode(cres); err != nil {
 		h.log.Error("could not encode response body", zap.Error(err))
 	}
-
 }
