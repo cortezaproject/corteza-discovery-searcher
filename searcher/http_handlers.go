@@ -63,6 +63,11 @@ func (h handlers) Sandbox(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h handlers) Search(w http.ResponseWriter, r *http.Request) {
+	//Allow CORS here By * or specific origin
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type,access-control-allow-origin, access-control-allow-headers")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+
 	w.Header().Set("Content-Type", "application/json")
 	_ = r.ParseForm()
 
