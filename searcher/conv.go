@@ -2,7 +2,6 @@ package searcher
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/spf13/cast"
 )
 
