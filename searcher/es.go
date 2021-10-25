@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/elastic/go-elasticsearch/v7"
 	"github.com/elastic/go-elasticsearch/v7/esapi"
 	"github.com/go-chi/jwtauth"
@@ -127,7 +126,9 @@ func search(ctx context.Context, esc *elasticsearch.Client, log *zap.Logger, p s
 	// Decide what indexes we can use
 	if userID == 0 {
 		// Missing, invalid, expired access token (JWT)
-		index.Prefix.Index.Value = "corteza-public-"
+		//index.Prefix.Index.Value = "corteza-public-"
+		// fixme revert this, temp fix for searching
+		index.Prefix.Index.Value = "corteza-private-"
 	} else {
 		// Authenticated user
 		index.Prefix.Index.Value = "corteza-private-"
@@ -212,7 +213,7 @@ func search(ctx context.Context, esc *elasticsearch.Client, log *zap.Logger, p s
 		os.Stdout.Write(bodyBytes)
 	}
 
-	spew.Dump("res.Body: ", res.Body)
+	//spew.Dump("res.Body: ", res.Body)
 
 	var sr = &esSearchResponse{}
 	if err = json.NewDecoder(res.Body).Decode(sr); err != nil {

@@ -29,7 +29,7 @@ type (
 
 // conv converts results from the backend into corteza-discovery (jsonld-ish) format
 func conv(sr *esSearchResponse) (out *cdResults, err error) {
-	fmt.Printf("sr: %+v", sr)
+	//fmt.Printf("sr: %+v", sr)
 
 	if sr == nil {
 		return
@@ -54,6 +54,14 @@ hits:
 			delete(aux, "userID")
 
 		case "compose:record":
+			aux["@id"] = aux["_id"]
+			delete(aux, "_id")
+
+		case "compose:namespace":
+			aux["@id"] = aux["_id"]
+			delete(aux, "_id")
+
+		case "compose:module":
 			aux["@id"] = aux["_id"]
 			delete(aux, "_id")
 
