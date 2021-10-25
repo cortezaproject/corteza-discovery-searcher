@@ -151,7 +151,7 @@
         //     alert("Please type valid search string")
         // }
 
-        const url = `/?q=${q}${aggStr}${size}`
+        const url = `http://localhost:3101/?q=${q}${aggStr}${size}`
         console.info("Fetching at ", url)
         fetch(url)
             .then(response => response.json()

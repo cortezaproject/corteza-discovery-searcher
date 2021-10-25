@@ -30,6 +30,9 @@ github.com/go-chi/chi
 github.com/go-chi/chi/middleware
 # github.com/go-chi/chi/v5 v5.0.2
 ## explicit
+# github.com/go-chi/cors v1.0.0
+## explicit
+github.com/go-chi/cors
 # github.com/go-chi/jwtauth v0.0.0-20190109153619-47840abb19b3
 ## explicit
 github.com/go-chi/jwtauth

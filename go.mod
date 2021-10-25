@@ -11,6 +11,7 @@ require (
 	github.com/getkin/kin-openapi v0.66.0 // indirect
 	github.com/go-chi/chi v3.3.4+incompatible
 	github.com/go-chi/chi/v5 v5.0.2 // indirect
+	github.com/go-chi/cors v1.0.0
 	github.com/go-chi/jwtauth v0.0.0-20190109153619-47840abb19b3
 	github.com/go-openapi/swag v0.19.15 // indirect
 	github.com/joho/godotenv v1.3.0

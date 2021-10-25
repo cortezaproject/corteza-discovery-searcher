@@ -9,6 +9,7 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
+	"github.com/go-chi/cors"
 	"github.com/go-chi/jwtauth"
 	"go.uber.org/zap"
 	"net"
@@ -30,6 +31,7 @@ func main() {
 
 	StartHttpServer(ctx, log, cfg.httpAddr, func() http.Handler {
 		router := chi.NewRouter()
+		router.Use(handleCORS)
 		router.Use(middleware.StripSlashes)
 		router.Use(middleware.RealIP)
 		router.Use(middleware.RequestID)
@@ -68,4 +70,15 @@ func StartHttpServer(ctx context.Context, log *zap.Logger, addr string, h http.H
 		err = srv.Serve(listener)
 	}()
 	<-ctx.Done()
+}
+
+// Sets up default CORS rules to use as a middleware
+func handleCORS(next http.Handler) http.Handler {
+	return cors.New(cors.Options{
+		AllowedOrigins:   []string{"*"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-ID"},
+		AllowCredentials: true,
+		MaxAge:           300, // Maximum value not ignored by any of major browsers
+	}).Handler(next)
 }
