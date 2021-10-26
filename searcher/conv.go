@@ -19,8 +19,8 @@ type (
 	}
 
 	cdHit struct {
-		Type  string      `json:"@type"`
-		Value interface{} `json:"@value"`
+		Type  string      `json:"type"`
+		Value interface{} `json:"value"`
 	}
 
 	// ldCtx map[string]interface{}
