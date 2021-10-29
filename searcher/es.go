@@ -176,7 +176,7 @@ func search(ctx context.Context, esc *elasticsearch.Client, log *zap.Logger, p s
 		esc.Search.WithBody(&buf),
 		esc.Search.WithTrackTotalHits(true),
 		//esc.Search.WithScroll(),
-		esc.Search.WithSize(20),
+		esc.Search.WithSize(p.size),
 		//esc.Search.WithFrom(0), // paging (offset)
 		//esc.Search.WithExplain(true), // debug
 	}
