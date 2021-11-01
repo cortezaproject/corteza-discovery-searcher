@@ -151,7 +151,10 @@ func search(ctx context.Context, esc *elasticsearch.Client, log *zap.Logger, p s
 		_ = roles
 	}
 
-	query.Query.Bool.Must = []interface{}{index, sqs}
+	query.Query.Bool.Must = []interface{}{index}
+	if len(p.query) > 0 {
+		query.Query.Bool.Must = append(query.Query.Bool.Must, sqs)
+	}
 
 	// Aggregations V1.0
 	if len(p.aggregations) > 0 {
@@ -169,6 +172,10 @@ func search(ctx context.Context, esc *elasticsearch.Client, log *zap.Logger, p s
 
 	if err := json.NewEncoder(&buf).Encode(query); err != nil {
 		return nil, fmt.Errorf("could not encode query: %q", err)
+	}
+
+	if p.size == 0 {
+		p.size = 999
 	}
 
 	sReqArgs := []func(*esapi.SearchRequest){

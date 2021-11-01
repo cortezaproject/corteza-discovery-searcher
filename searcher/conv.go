@@ -13,7 +13,8 @@ type (
 			TotalOp string `json:"op"`
 		} `json:"total"`
 
-		Hits []cdHit `json:"hits"`
+		Hits      []cdHit `json:"hits"`
+		TotalHits int     `json:"total_hits"`
 
 		// Context ldCtx `json:"@context"`
 	}
@@ -74,5 +75,6 @@ hits:
 		})
 	}
 
+	out.TotalHits = len(out.Hits)
 	return
 }
