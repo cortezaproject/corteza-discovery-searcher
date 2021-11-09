@@ -47,23 +47,25 @@ type (
 
 	esSearchAggrTerm struct {
 		Field string `json:"field"`
-		Size  int    `json:"size"`
+		Size  int    `json:"size,omitempty"`
 	}
 
 	esSearchAggrComposite struct {
 		Sources interface{} `json:"sources"` // it can be esSearchAggrTerm,.. (Histogram, Date histogram, GeoTile grid)
-		Size    int         `json:"size"`
+		Size    int         `json:"size,omitempty"`
 	}
 
 	esSearchAggr struct {
-		Terms esSearchAggrTerm `json:"terms"`
+		Terms        esSearchAggrTerm  `json:"terms"`
+		Aggregations EsSearchAggrTerms `json:"aggs,omitempty"`
 		//Composite *esSearchAggrComposite `json:"composite"`
 	}
 
 	esSearchResponse struct {
-		Took     int          `json:"took"`
-		TimedOut bool         `json:"timed_out"`
-		Hits     esSearchHits `json:"hits"`
+		Took         int                  `json:"took"`
+		TimedOut     bool                 `json:"timed_out"`
+		Hits         esSearchHits         `json:"hits"`
+		Aggregations esSearchAggregations `json:"aggregations"`
 	}
 
 	esSearchTotal struct {
@@ -80,6 +82,25 @@ type (
 		Index  string          `json:"_index"`
 		ID     string          `json:"_id"`
 		Source json.RawMessage `json:"_source"`
+	}
+
+	esSearchAggregations struct {
+		Resource struct {
+			DocCountErrorUpperBound int `json:"-"`
+			SumOtherDocCount        int `json:"-"`
+			Buckets                 []struct {
+				Key          string `json:"key"`
+				DocCount     int    `json:"doc_count"`
+				ResourceName struct {
+					DocCountErrorUpperBound int `json:"-"`
+					SumOtherDocCount        int `json:"-"`
+					Buckets                 []struct {
+						Key      string `json:"key"`
+						DocCount int    `json:"doc_count"`
+					} `json:"buckets"`
+				} `json:"resourceName"`
+			} `json:"buckets"`
+		} `json:"resource"`
 	}
 
 	searchParams struct {
@@ -157,12 +178,52 @@ func search(ctx context.Context, esc *elasticsearch.Client, log *zap.Logger, p s
 	}
 
 	// Aggregations V1.0
-	if len(p.aggregations) > 0 {
-		query.Aggregations = make(map[string]esSearchAggr)
+	//if len(p.aggregations) > 0 {
+	//	query.Aggregations = make(map[string]esSearchAggr)
+	//
+	//	for _, a := range p.aggregations {
+	//		query.Aggregations[a] = esSearchAggr{esSearchAggrTerm{Field: a + ".keyword"}}
+	//	}
+	//}
 
+	// Aggregations V1.0 Improved
+	if len(p.aggregations) > 0 {
 		for _, a := range p.aggregations {
-			query.Aggregations[a] = esSearchAggr{esSearchAggrTerm{Field: a + ".keyword"}}
+			if len(a) > 0 {
+				sqs = esSimpleQueryString{}
+				sqs.Wrap.Query = a
+				query.Query.Bool.Must = append(query.Query.Bool.Must, sqs)
+			}
 		}
+	}
+
+	// Here is how aggs should look like for elastic search
+	//"aggs": {
+	//	"resource": {
+	//		"terms": {
+	//			"field": "resourceType.keyword"
+	//		},
+	//		"aggs": {
+	//			"resourceName": {
+	//				"terms": {
+	//					"field": "name.keyword"
+	//				}
+	//			}
+	//		}
+	//	}
+	//}
+	query.Aggregations = make(map[string]esSearchAggr)
+	query.Aggregations["resource"] = esSearchAggr{
+		Terms: esSearchAggrTerm{
+			Field: "resourceType.keyword",
+		},
+		Aggregations: EsSearchAggrTerms{
+			"resourceName": esSearchAggr{
+				Terms: esSearchAggrTerm{
+					Field: "name.keyword",
+				},
+			},
+		},
 	}
 
 	// Aggregations V2.0
@@ -174,6 +235,8 @@ func search(ctx context.Context, esc *elasticsearch.Client, log *zap.Logger, p s
 		return nil, fmt.Errorf("could not encode query: %q", err)
 	}
 
+	// Why set size to 999? default value for size is 10,
+	// so we needed to set value till we add (@todo) pagination to search result
 	if p.size == 0 {
 		p.size = 999
 	}
@@ -187,10 +250,6 @@ func search(ctx context.Context, esc *elasticsearch.Client, log *zap.Logger, p s
 		//esc.Search.WithFrom(0), // paging (offset)
 		//esc.Search.WithExplain(true), // debug
 	}
-
-	//if p.size > 0 {
-	//	sReqArgs = append(sReqArgs, esc.Search.WithSize(p.size))
-	//}
 
 	if p.dumpRaw {
 		sReqArgs = append(
@@ -219,8 +278,6 @@ func search(ctx context.Context, esc *elasticsearch.Client, log *zap.Logger, p s
 		res.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
 		os.Stdout.Write(bodyBytes)
 	}
-
-	//spew.Dump("res.Body: ", res.Body)
 
 	var sr = &esSearchResponse{}
 	if err = json.NewDecoder(res.Body).Decode(sr); err != nil {

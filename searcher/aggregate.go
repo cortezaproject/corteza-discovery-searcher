@@ -31,7 +31,7 @@ type (
 func (t Aggregations) encodeTerms(aggregations []string) (res EsSearchAggrTerms) {
 	res = make(map[string]esSearchAggr)
 	for _, a := range aggregations {
-		res[a] = esSearchAggr{esSearchAggrTerm{Field: a + ".keyword"}}
+		res[a] = esSearchAggr{Terms: esSearchAggrTerm{Field: a + ".keyword"}}
 	}
 
 	return
