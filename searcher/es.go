@@ -216,11 +216,13 @@ func search(ctx context.Context, esc *elasticsearch.Client, log *zap.Logger, p s
 	query.Aggregations["resource"] = esSearchAggr{
 		Terms: esSearchAggrTerm{
 			Field: "resourceType.keyword",
+			Size:  999,
 		},
 		Aggregations: EsSearchAggrTerms{
 			"resourceName": esSearchAggr{
 				Terms: esSearchAggrTerm{
 					Field: "name.keyword",
+					Size:  999,
 				},
 			},
 		},
