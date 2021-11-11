@@ -70,8 +70,10 @@ func (h handlers) Search(w http.ResponseWriter, r *http.Request) {
 	if len(r.FormValue("size")) > 0 {
 		size, _ = strconv.Atoi(r.FormValue("size"))
 	}
+
+	searchString := r.FormValue("q")
 	results, err := search(r.Context(), h.esc, h.log, searchParams{
-		query:         r.FormValue("q"),
+		query:         searchString,
 		moduleAggs:    r.Form["moduleAggs"],
 		namespaceAggs: r.Form["namespaceAggs"],
 		size:          size,
@@ -82,12 +84,15 @@ func (h handlers) Search(w http.ResponseWriter, r *http.Request) {
 		h.log.Error("could not execute search", zap.Error(err))
 	}
 
-	aggregation, err := search(r.Context(), h.esc, h.log, searchParams{
-		size:    size,
-		dumpRaw: r.FormValue("dump") != "",
-	})
-	if err != nil {
-		h.log.Error("could not execute aggregation search", zap.Error(err))
+	var aggregation *esSearchResponse
+	if len(searchString) == 0 {
+		aggregation, err = search(r.Context(), h.esc, h.log, searchParams{
+			size:    size,
+			dumpRaw: r.FormValue("dump") != "",
+		})
+		if err != nil {
+			h.log.Error("could not execute aggregation search", zap.Error(err))
+		}
 	}
 
 	if cres, err := conv(results, aggregation); err != nil {

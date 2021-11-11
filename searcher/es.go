@@ -278,7 +278,6 @@ func search(ctx context.Context, esc *elasticsearch.Client, log *zap.Logger, p s
 	if err := json.NewEncoder(&buf).Encode(query); err != nil {
 		return nil, fmt.Errorf("could not encode query: %q", err)
 	}
-	fmt.Println("buf: ", buf.String())
 
 	// Why set size to 999? default value for size is 10,
 	// so we needed to set value till we add (@todo) pagination to search result
