@@ -3,6 +3,7 @@ package searcher
 import (
 	"encoding/json"
 	"github.com/spf13/cast"
+	"sort"
 )
 
 type (
@@ -125,6 +126,11 @@ func conv(sr *esSearchResponse) (out *cdResults, err error) {
 		nsAggregation.Hits += nsHits.Hits
 		nsAggregation.ResourceName = append(nsAggregation.ResourceName, nsHits)
 	}
+	if len(nsAggregation.ResourceName) > 0 {
+		sort.Slice(nsAggregation.ResourceName, func(i, j int) bool {
+			return nsAggregation.ResourceName[i].Name < nsAggregation.ResourceName[j].Name
+		})
+	}
 	out.Aggregations = append(out.Aggregations, nsAggregation)
 
 	mAggregation := cdAggregation{
@@ -136,6 +142,11 @@ func conv(sr *esSearchResponse) (out *cdResults, err error) {
 	for _, mHits := range mTotalHits {
 		mAggregation.Hits += mHits.Hits
 		mAggregation.ResourceName = append(mAggregation.ResourceName, mHits)
+	}
+	if len(mAggregation.ResourceName) > 0 {
+		sort.Slice(mAggregation.ResourceName, func(i, j int) bool {
+			return mAggregation.ResourceName[i].Name < mAggregation.ResourceName[j].Name
+		})
 	}
 	out.Aggregations = append(out.Aggregations, mAggregation)
 
