@@ -30,6 +30,13 @@ type (
 		} `json:"simple_query_string"`
 	}
 
+	esMultiMatch struct {
+		Wrap struct {
+			Query  string   `json:"query"`
+			Fields []string `json:"fields"`
+		} `json:"multi_match"`
+	}
+
 	esSearchParams struct {
 		Query struct {
 			Bool struct {
@@ -189,7 +196,10 @@ func search(ctx context.Context, esc *elasticsearch.Client, log *zap.Logger, p s
 		_ = roles
 	}
 
+	// Query MUST filter
 	query.Query.Bool.Must = []interface{}{index}
+
+	// Search string filter
 	if len(p.query) > 0 {
 		query.Query.Bool.Must = append(query.Query.Bool.Must, sqs)
 	}
@@ -203,6 +213,24 @@ func search(ctx context.Context, esc *elasticsearch.Client, log *zap.Logger, p s
 	//	}
 	//}
 
+	// Search string filter
+	if len(p.query) > 0 {
+		query.Query.Bool.Must = append(query.Query.Bool.Must, sqs)
+	}
+
+	mm := esMultiMatch{}
+	for _, mAggs := range p.moduleAggs {
+		mm.Wrap.Query = mAggs
+		mm.Wrap.Fields = []string{"name.keyword", "module.name.keyword"}
+		query.Query.Bool.Must = append(query.Query.Bool.Must, mm)
+	}
+
+	for _, nAggs := range p.moduleAggs {
+		mm.Wrap.Query = nAggs
+		mm.Wrap.Fields = []string{"name.keyword", "namespace.name.keyword"}
+		query.Query.Bool.Must = append(query.Query.Bool.Must, mm)
+	}
+
 	// Aggregations V1.0 Improved fixme
 	//if len(p.aggregations) > 0 {
 	//	for _, a := range p.aggregations {
@@ -214,21 +242,6 @@ func search(ctx context.Context, esc *elasticsearch.Client, log *zap.Logger, p s
 	//	}
 	//}
 
-	// Here is how aggs should look like for elastic search
-	//"aggs": {
-	//	"resource": {
-	//		"terms": {
-	//			"field": "resourceType.keyword"
-	//		},
-	//		"aggs": {
-	//			"resourceName": {
-	//				"terms": {
-	//					"field": "name.keyword"
-	//				}
-	//			}
-	//		}
-	//	}
-	//}
 	query.Aggregations = make(map[string]esSearchAggr)
 	query.Aggregations["resource"] = esSearchAggr{
 		Terms: esSearchAggrTerm{
@@ -265,6 +278,7 @@ func search(ctx context.Context, esc *elasticsearch.Client, log *zap.Logger, p s
 	if err := json.NewEncoder(&buf).Encode(query); err != nil {
 		return nil, fmt.Errorf("could not encode query: %q", err)
 	}
+	fmt.Println("buf: ", buf.String())
 
 	// Why set size to 999? default value for size is 10,
 	// so we needed to set value till we add (@todo) pagination to search result

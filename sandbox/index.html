@@ -74,14 +74,19 @@
 <body>
 <div class="container mt-5">
     <div class="row">
-        <div class="col-5">
+        <div class="col-12">
             <label for="input"></label>
             <input type="text" id="input" class="input float-left" placeholder="Search..">
         </div>
         <div class="col-5">
             <label for="input"></label>
-            <input type="text" id="aggs-input" class="input float-left"
-                   placeholder="Type aggregation ie: Agg1, agg2, agg3">
+            <input type="text" id="ns-aggs-input" class="input float-left"
+                   placeholder="Type Namespace aggregation ie: Agg1, agg2, agg3">
+        </div>
+        <div class="col-5">
+            <label for="input"></label>
+            <input type="text" id="m-aggs-input" class="input float-left"
+                   placeholder="Type Module aggregation ie: Agg1, agg2, agg3">
         </div>
         <div class="col-2">
             <label for="input"></label>
@@ -130,13 +135,23 @@
             q = inputEle.value
         }
 
-        let aggStr = ``;
-        const aggsInputEle = document.getElementById("aggs-input");
-        if (aggsInputEle && aggsInputEle.value) {
-            let val = aggsInputEle.value.split(',') || []
+        let nAggStr = ``;
+        const nAggsInputEle = document.getElementById("ns-aggs-input");
+        if (nAggsInputEle && nAggsInputEle.value) {
+            let val = nAggsInputEle.value.split(',') || []
 
             for (let i = 0; i < val.length; i++) {
-                aggStr += `&aggs=${val[i].trim()}`
+                nAggStr += `&namespaceAggs=${val[i].trim()}`
+            }
+        }
+
+        let mAggStr = ``;
+        const mAggsInputEle = document.getElementById("m-aggs-input");
+        if (mAggsInputEle && mAggsInputEle.value) {
+            let val = mAggsInputEle.value.split(',') || []
+
+            for (let i = 0; i < val.length; i++) {
+                mAggStr += `&moduleAggs=${val[i].trim()}`
             }
         }
 
@@ -151,7 +166,7 @@
         //     alert("Please type valid search string")
         // }
 
-        const url = `http://localhost:3101/?q=${q}${aggStr}${size}`
+        const url = `http://localhost:3101/?q=${q}${nAggStr}${mAggStr}${size}`
         console.info("Fetching at ", url)
         fetch(url)
             .then(response => response.json()
