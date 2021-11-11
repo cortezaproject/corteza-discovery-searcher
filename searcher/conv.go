@@ -135,7 +135,7 @@ func conv(sr *esSearchResponse) (out *cdResults, err error) {
 	}
 	for _, mHits := range mTotalHits {
 		mAggregation.Hits += mHits.Hits
-		mAggregation.ResourceName = append(nsAggregation.ResourceName, mHits)
+		mAggregation.ResourceName = append(mAggregation.ResourceName, mHits)
 	}
 	out.Aggregations = append(out.Aggregations, mAggregation)
 
