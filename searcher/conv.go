@@ -41,7 +41,7 @@ type (
 )
 
 // conv converts results from the backend into corteza-discovery (jsonld-ish) format
-func conv(sr *esSearchResponse) (out *cdResults, err error) {
+func conv(sr *esSearchResponse, aggregation *esSearchResponse) (out *cdResults, err error) {
 	if sr == nil {
 		return
 	}
@@ -53,7 +53,12 @@ func conv(sr *esSearchResponse) (out *cdResults, err error) {
 
 	nsTotalHits := make(map[string]cdAggregationHits)
 	mTotalHits := make(map[string]cdAggregationHits)
-	for _, bucket := range sr.Aggregations.Resource.Buckets {
+
+	aggsRes := sr.Aggregations
+	if aggregation != nil {
+		aggsRes = aggregation.Aggregations
+	}
+	for _, bucket := range aggsRes.Resource.Buckets {
 		bucketName := getResourceName(bucket.Key)
 		if bucketName == "User" {
 			continue

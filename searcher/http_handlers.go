@@ -82,7 +82,15 @@ func (h handlers) Search(w http.ResponseWriter, r *http.Request) {
 		h.log.Error("could not execute search", zap.Error(err))
 	}
 
-	if cres, err := conv(results); err != nil {
+	aggregation, err := search(r.Context(), h.esc, h.log, searchParams{
+		size:    size,
+		dumpRaw: r.FormValue("dump") != "",
+	})
+	if err != nil {
+		h.log.Error("could not execute aggregation search", zap.Error(err))
+	}
+
+	if cres, err := conv(results, aggregation); err != nil {
 		h.log.Error("could not encode response body", zap.Error(err))
 	} else if err = json.NewEncoder(w).Encode(cres); err != nil {
 		h.log.Error("could not encode response body", zap.Error(err))
