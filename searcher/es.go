@@ -99,15 +99,32 @@ type (
 						DocCount int    `json:"doc_count"`
 					} `json:"buckets"`
 				} `json:"resourceName"`
+				Namespaces struct {
+					DocCountErrorUpperBound int `json:"-"`
+					SumOtherDocCount        int `json:"-"`
+					Buckets                 []struct {
+						Key      string `json:"key"`
+						DocCount int    `json:"doc_count"`
+					} `json:"buckets"`
+				} `json:"namespaces"`
+				Modules struct {
+					DocCountErrorUpperBound int `json:"-"`
+					SumOtherDocCount        int `json:"-"`
+					Buckets                 []struct {
+						Key      string `json:"key"`
+						DocCount int    `json:"doc_count"`
+					} `json:"buckets"`
+				} `json:"modules"`
 			} `json:"buckets"`
 		} `json:"resource"`
 	}
 
 	searchParams struct {
-		query        string
-		aggregations []string
-		dumpRaw      bool
-		size         int
+		query         string
+		moduleAggs    []string
+		namespaceAggs []string
+		dumpRaw       bool
+		size          int
 	}
 )
 
@@ -186,16 +203,16 @@ func search(ctx context.Context, esc *elasticsearch.Client, log *zap.Logger, p s
 	//	}
 	//}
 
-	// Aggregations V1.0 Improved
-	if len(p.aggregations) > 0 {
-		for _, a := range p.aggregations {
-			if len(a) > 0 {
-				sqs = esSimpleQueryString{}
-				sqs.Wrap.Query = a
-				query.Query.Bool.Must = append(query.Query.Bool.Must, sqs)
-			}
-		}
-	}
+	// Aggregations V1.0 Improved fixme
+	//if len(p.aggregations) > 0 {
+	//	for _, a := range p.aggregations {
+	//		if len(a) > 0 {
+	//			sqs = esSimpleQueryString{}
+	//			sqs.Wrap.Query = a
+	//			query.Query.Bool.Must = append(query.Query.Bool.Must, sqs)
+	//		}
+	//	}
+	//}
 
 	// Here is how aggs should look like for elastic search
 	//"aggs": {
@@ -222,6 +239,18 @@ func search(ctx context.Context, esc *elasticsearch.Client, log *zap.Logger, p s
 			"resourceName": esSearchAggr{
 				Terms: esSearchAggrTerm{
 					Field: "name.keyword",
+					Size:  999,
+				},
+			},
+			"modules": esSearchAggr{
+				Terms: esSearchAggrTerm{
+					Field: "module.name.keyword",
+					Size:  999,
+				},
+			},
+			"namespaces": esSearchAggr{
+				Terms: esSearchAggrTerm{
+					Field: "namespace.name.keyword",
 					Size:  999,
 				},
 			},

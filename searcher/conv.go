@@ -50,24 +50,94 @@ func conv(sr *esSearchResponse) (out *cdResults, err error) {
 	out.Total.TotalOp = sr.Hits.Total.Relation
 	out.Aggregations = []cdAggregation{}
 
+	nsTotalHits := make(map[string]cdAggregationHits)
+	mTotalHits := make(map[string]cdAggregationHits)
 	for _, bucket := range sr.Aggregations.Resource.Buckets {
-		if bucket.Key == "compose:record" || bucket.Key == "system:user" {
+		bucketName := getResourceName(bucket.Key)
+		if bucketName == "User" {
 			continue
 		}
-		var resourceNames []cdAggregationHits
+
 		for _, subBucket := range bucket.ResourceName.Buckets {
-			resourceNames = append(resourceNames, cdAggregationHits{
-				Name: subBucket.Key,
-				Hits: subBucket.DocCount,
-			})
+			resourceName := subBucket.Key
+			if bucketName == "Namespace" {
+				if val, is := nsTotalHits[resourceName]; is {
+					val.Hits += subBucket.DocCount
+					nsTotalHits[resourceName] = val
+				} else {
+					nsTotalHits[resourceName] = cdAggregationHits{
+						Name: resourceName,
+						Hits: subBucket.DocCount,
+					}
+				}
+			}
+
+			if bucketName == "Module" {
+				if val, is := mTotalHits[resourceName]; is {
+					val.Hits += subBucket.DocCount
+					mTotalHits[resourceName] = val
+				} else {
+					mTotalHits[resourceName] = cdAggregationHits{
+						Name: resourceName,
+						Hits: subBucket.DocCount,
+					}
+				}
+			}
 		}
 
-		out.Aggregations = append(out.Aggregations, cdAggregation{
-			Name:         getResourceName(bucket.Key),
-			Hits:         bucket.DocCount,
-			ResourceName: resourceNames,
-		})
+		// Namespace total aggs hit counts
+		for _, nsBucket := range bucket.Namespaces.Buckets {
+			resourceName := nsBucket.Key
+			if val, is := nsTotalHits[resourceName]; is {
+				val.Hits += nsBucket.DocCount
+				nsTotalHits[resourceName] = val
+			} else {
+				nsTotalHits[resourceName] = cdAggregationHits{
+					Name: resourceName,
+					Hits: nsBucket.DocCount,
+				}
+			}
+		}
+
+		// Module total aggs hit counts
+		for _, mBucket := range bucket.Modules.Buckets {
+			resourceName := mBucket.Key
+			if val, is := mTotalHits[resourceName]; is {
+				val.Hits += mBucket.DocCount
+				mTotalHits[resourceName] = val
+
+			} else {
+				mTotalHits[resourceName] = cdAggregationHits{
+					Name: resourceName,
+					Hits: mBucket.DocCount,
+				}
+			}
+		}
 	}
+
+	nsAggregation := cdAggregation{
+		Name:         "Namespace",
+		Resource:     "compose:namespace",
+		Hits:         0,
+		ResourceName: []cdAggregationHits{},
+	}
+	for _, nsHits := range nsTotalHits {
+		nsAggregation.Hits += nsHits.Hits
+		nsAggregation.ResourceName = append(nsAggregation.ResourceName, nsHits)
+	}
+	out.Aggregations = append(out.Aggregations, nsAggregation)
+
+	mAggregation := cdAggregation{
+		Name:         "Module",
+		Resource:     "compose:module",
+		Hits:         0,
+		ResourceName: []cdAggregationHits{},
+	}
+	for _, mHits := range mTotalHits {
+		mAggregation.Hits += mHits.Hits
+		mAggregation.ResourceName = append(nsAggregation.ResourceName, mHits)
+	}
+	out.Aggregations = append(out.Aggregations, mAggregation)
 
 hits:
 	for _, h := range sr.Hits.Hits {

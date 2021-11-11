@@ -71,11 +71,11 @@ func (h handlers) Search(w http.ResponseWriter, r *http.Request) {
 		size, _ = strconv.Atoi(r.FormValue("size"))
 	}
 	results, err := search(r.Context(), h.esc, h.log, searchParams{
-		query:        r.FormValue("q"),
-		aggregations: r.Form["aggs"],
-		//aggregations: nil,
-		size:    size,
-		dumpRaw: r.FormValue("dump") != "",
+		query:         r.FormValue("q"),
+		moduleAggs:    r.Form["moduleAggs"],
+		namespaceAggs: r.Form["namespaceAggs"],
+		size:          size,
+		dumpRaw:       r.FormValue("dump") != "",
 	})
 
 	if err != nil {
