@@ -225,7 +225,7 @@ func search(ctx context.Context, esc *elasticsearch.Client, log *zap.Logger, p s
 		query.Query.Bool.Must = append(query.Query.Bool.Must, mm)
 	}
 
-	for _, nAggs := range p.moduleAggs {
+	for _, nAggs := range p.namespaceAggs {
 		mm.Wrap.Query = nAggs
 		mm.Wrap.Fields = []string{"name.keyword", "namespace.name.keyword"}
 		query.Query.Bool.Must = append(query.Query.Bool.Must, mm)
