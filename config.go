@@ -22,13 +22,14 @@ type (
 )
 
 const (
-	envKeyHttpAddr     = "HTTP_ADDR"
-	envKeyEsAddr       = "ES_ADDRESS"
-	envKeyBaseUrl      = "CORTEZA_SERVER_BASE_URL"
-	envKeyAuthUrl      = "CORTEZA_SERVER_AUTH_URL"
-	envKeyJwtSecret    = "CORTEZA_SERVER_JWT_SECRET"
-	envKeyClientKey    = "CORTEZA_SERVER_CLIENT_KEY"
-	envKeyClientSecret = "CORTEZA_SERVER_CLIENT_SECRET"
+	discoverySearcher  = "DISCOVERY_SEARCHER_"
+	envKeyHttpAddr     = discoverySearcher + "HTTP_ADDR"
+	envKeyEsAddr       = discoverySearcher + "ES_ADDRESS"
+	envKeyBaseUrl      = discoverySearcher + "CORTEZA_SERVER_BASE_URL"
+	envKeyAuthUrl      = discoverySearcher + "CORTEZA_SERVER_AUTH_URL"
+	envKeyJwtSecret    = discoverySearcher + "CORTEZA_SERVER_JWT_SECRET"
+	envKeyClientKey    = discoverySearcher + "CORTEZA_SERVER_CLIENT_KEY"
+	envKeyClientSecret = discoverySearcher + "CORTEZA_SERVER_CLIENT_SECRET"
 )
 
 func getConfig() (*config, error) {
@@ -57,7 +58,7 @@ func getConfig() (*config, error) {
 			return fmt.Errorf("client secret (%s) is empty or missing", envKeyClientSecret)
 		}
 
-		for _, a := range strings.Split(options.EnvString("ES_ADDRESS", envKeyEsAddr), " ") {
+		for _, a := range strings.Split(options.EnvString(envKeyEsAddr, "http://localhost:9200"), " ") {
 			if a = strings.TrimSpace(a); a != "" {
 				c.es.addresses = append(c.es.addresses, a)
 			}
