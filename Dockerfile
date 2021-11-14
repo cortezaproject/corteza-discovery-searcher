@@ -26,8 +26,9 @@ WORKDIR /corteza
 
 ENV STORAGE_PATH "/data"
 ENV PATH "/corteza/bin:${PATH}"
+ENV DISCOVERY_SEARCHER_HTTP_ADDR "0.0.0.0:3101"
 
-EXPOSE 80
+EXPOSE 3101
 
 ENTRYPOINT ["./bin/corteza-server"]
 
