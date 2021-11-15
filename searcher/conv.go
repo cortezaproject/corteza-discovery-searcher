@@ -41,7 +41,7 @@ type (
 )
 
 // conv converts results from the backend into corteza-discovery (jsonld-ish) format
-func conv(sr *esSearchResponse, aggregation *esSearchResponse) (out *cdResults, err error) {
+func conv(sr *esSearchResponse, aggregation *esSearchResponse, noHits bool) (out *cdResults, err error) {
 	if sr == nil {
 		return
 	}
@@ -155,43 +155,44 @@ func conv(sr *esSearchResponse, aggregation *esSearchResponse) (out *cdResults, 
 	}
 	out.Aggregations = append(out.Aggregations, mAggregation)
 
-hits:
-	for _, h := range sr.Hits.Hits {
-		aux := map[string]interface{}{}
-		if err = json.Unmarshal(h.Source, &aux); err != nil {
-			return
+	if !noHits {
+	hits:
+		for _, h := range sr.Hits.Hits {
+			aux := map[string]interface{}{}
+			if err = json.Unmarshal(h.Source, &aux); err != nil {
+				return
+			}
+
+			resType := cast.ToString(aux["resourceType"])
+			delete(aux, "resourceType")
+			switch resType {
+			case "system:user":
+				aux["@id"] = aux["userID"]
+				delete(aux, "userID")
+
+			case "compose:record":
+				aux["@id"] = aux["_id"]
+				delete(aux, "_id")
+
+			case "compose:namespace":
+				aux["@id"] = aux["_id"]
+				delete(aux, "_id")
+
+			case "compose:module":
+				aux["@id"] = aux["_id"]
+				delete(aux, "_id")
+
+			default:
+				continue hits
+			}
+
+			out.Hits = append(out.Hits, cdHit{
+				Type:  resType,
+				Value: aux,
+			})
 		}
-
-		resType := cast.ToString(aux["resourceType"])
-		delete(aux, "resourceType")
-		switch resType {
-		case "system:user":
-			aux["@id"] = aux["userID"]
-			delete(aux, "userID")
-
-		case "compose:record":
-			aux["@id"] = aux["_id"]
-			delete(aux, "_id")
-
-		case "compose:namespace":
-			aux["@id"] = aux["_id"]
-			delete(aux, "_id")
-
-		case "compose:module":
-			aux["@id"] = aux["_id"]
-			delete(aux, "_id")
-
-		default:
-			continue hits
-		}
-
-		out.Hits = append(out.Hits, cdHit{
-			Type:  resType,
-			Value: aux,
-		})
+		out.TotalHits = len(out.Hits)
 	}
-
-	out.TotalHits = len(out.Hits)
 	return
 }
 

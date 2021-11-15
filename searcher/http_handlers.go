@@ -71,11 +71,21 @@ func (h handlers) Search(w http.ResponseWriter, r *http.Request) {
 		size, _ = strconv.Atoi(r.FormValue("size"))
 	}
 
-	searchString := r.FormValue("q")
-	results, err := search(r.Context(), h.esc, h.log, searchParams{
+	//searchString := r.FormValue("q")
+	var (
+		// fixme cleanup make struct or something
+		searchString  = r.FormValue("q")
+		moduleAggs    = r.Form["moduleAggs"]
+		namespaceAggs = r.Form["namespaceAggs"]
+
+		results     *esSearchResponse
+		aggregation *esSearchResponse
+		err         error
+	)
+	results, err = search(r.Context(), h.esc, h.log, searchParams{
 		query:         searchString,
-		moduleAggs:    r.Form["moduleAggs"],
-		namespaceAggs: r.Form["namespaceAggs"],
+		moduleAggs:    moduleAggs,
+		namespaceAggs: namespaceAggs,
 		size:          size,
 		dumpRaw:       r.FormValue("dump") != "",
 	})
@@ -84,7 +94,6 @@ func (h handlers) Search(w http.ResponseWriter, r *http.Request) {
 		h.log.Error("could not execute search", zap.Error(err))
 	}
 
-	var aggregation *esSearchResponse
 	if len(searchString) == 0 {
 		aggregation, err = search(r.Context(), h.esc, h.log, searchParams{
 			size:    size,
@@ -95,7 +104,8 @@ func (h handlers) Search(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if cres, err := conv(results, aggregation); err != nil {
+	noHits := len(searchString) == 0 && len(searchString) == 0 && len(namespaceAggs) == 0
+	if cres, err := conv(results, aggregation, noHits); err != nil {
 		h.log.Error("could not encode response body", zap.Error(err))
 	} else if err = json.NewEncoder(w).Encode(cres); err != nil {
 		h.log.Error("could not encode response body", zap.Error(err))
