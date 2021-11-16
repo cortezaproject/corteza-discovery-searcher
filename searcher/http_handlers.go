@@ -104,7 +104,7 @@ func (h handlers) Search(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	noHits := len(searchString) == 0 && len(searchString) == 0 && len(namespaceAggs) == 0
+	noHits := len(searchString) == 0 && len(moduleAggs) == 0 && len(namespaceAggs) == 0
 	if cres, err := conv(results, aggregation, noHits); err != nil {
 		h.log.Error("could not encode response body", zap.Error(err))
 	} else if err = json.NewEncoder(w).Encode(cres); err != nil {

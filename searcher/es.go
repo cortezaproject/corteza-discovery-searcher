@@ -32,21 +32,26 @@ type (
 
 	esMultiMatch struct {
 		Wrap struct {
-			Query  string   `json:"query"`
+			Query string `json:"query"`
+			Type  string `json:"type"`
+			//Operator string   `json:"operator"`
 			Fields []string `json:"fields"`
 		} `json:"multi_match"`
 	}
 
 	esSearchParams struct {
 		Query struct {
-			Bool struct {
-				// query context
-				Must []interface{} `json:"must"`
-
-				// filter context
-				Filter  []interface{} `json:"filter,omitempty"`
-				MustNot []interface{} `json:"must_not,omitempty"`
-			} `json:"bool"`
+			//Bool struct {
+			//	// query context
+			//	//Must []interface{} `json:"must,omitempty"`
+			//
+			//	// filter context
+			//	Filter  []interface{} `json:"filter,omitempty"`
+			//	MustNot []interface{} `json:"must_not,omitempty"`
+			//} `json:"bool,omitempty"`
+			DisMax struct {
+				Queries []interface{} `json:"queries"`
+			} `json:"dis_max,omitempty"`
 		} `json:"query"`
 
 		Aggregations EsSearchAggrTerms `json:"aggs,omitempty"`
@@ -178,31 +183,26 @@ func search(ctx context.Context, esc *elasticsearch.Client, log *zap.Logger, p s
 		// Authenticated user
 		index.Prefix.Index.Value = "corteza-private-"
 
-		query.Query.Bool.Filter = []interface{}{
-			//map[string]map[string]interface{}{
-			//	"exists": {"field": []string{"security.allowedRoles", "security.deniedRoles"}},
-			//},
-			map[string]map[string]interface{}{
-				// Skip all documents that do not have baring roles in the allow list
-				"terms": {"security.allowedRoles": roles},
-			},
-		}
-		query.Query.Bool.MustNot = []interface{}{
-			map[string]map[string]interface{}{
-				// Skip all documents that have baring roles in the deny list
-				"terms": {"security.deniedRoles": roles},
-			},
-		}
+		//query.Query.Bool.Filter = []interface{}{
+		//	//map[string]map[string]interface{}{
+		//	//	"exists": {"field": []string{"security.allowedRoles", "security.deniedRoles"}},
+		//	//},
+		//	map[string]map[string]interface{}{
+		//		// Skip all documents that do not have baring roles in the allow list
+		//		"terms": {"security.allowedRoles": roles},
+		//	},
+		//}
+		//query.Query.Bool.MustNot = []interface{}{
+		//	map[string]map[string]interface{}{
+		//		// Skip all documents that have baring roles in the deny list
+		//		"terms": {"security.deniedRoles": roles},
+		//	},
+		//}
 		_ = roles
 	}
 
 	// Query MUST filter
-	query.Query.Bool.Must = []interface{}{index}
-
-	// Search string filter
-	if len(p.query) > 0 {
-		query.Query.Bool.Must = append(query.Query.Bool.Must, sqs)
-	}
+	//query.Query.Bool.Must = []interface{}{index}
 
 	// Aggregations V1.0
 	//if len(p.aggregations) > 0 {
@@ -215,20 +215,25 @@ func search(ctx context.Context, esc *elasticsearch.Client, log *zap.Logger, p s
 
 	// Search string filter
 	if len(p.query) > 0 {
-		query.Query.Bool.Must = append(query.Query.Bool.Must, sqs)
+		//query.Query.Bool.Must = append(query.Query.Bool.Must, sqs)
+		query.Query.DisMax.Queries = append(query.Query.DisMax.Queries, sqs)
 	}
 
 	mm := esMultiMatch{}
 	for _, mAggs := range p.moduleAggs {
 		mm.Wrap.Query = mAggs
+		mm.Wrap.Type = "cross_fields"
 		mm.Wrap.Fields = []string{"name.keyword", "module.name.keyword"}
-		query.Query.Bool.Must = append(query.Query.Bool.Must, mm)
+		//query.Query.Bool.Must = append(query.Query.Bool.Must, mm)
+		query.Query.DisMax.Queries = append(query.Query.DisMax.Queries, mm)
 	}
 
 	for _, nAggs := range p.namespaceAggs {
 		mm.Wrap.Query = nAggs
+		mm.Wrap.Type = "cross_fields"
 		mm.Wrap.Fields = []string{"name.keyword", "namespace.name.keyword"}
-		query.Query.Bool.Must = append(query.Query.Bool.Must, mm)
+		//query.Query.Bool.Must = append(query.Query.Bool.Must, mm)
+		query.Query.DisMax.Queries = append(query.Query.DisMax.Queries, mm)
 	}
 
 	// Aggregations V1.0 Improved fixme
