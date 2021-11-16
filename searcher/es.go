@@ -247,6 +247,9 @@ func search(ctx context.Context, esc *elasticsearch.Client, log *zap.Logger, p s
 	//	}
 	//}
 
+	if len(p.query) == 0 && len(p.moduleAggs) == 0 && len(p.namespaceAggs) == 0 {
+		query.Query.DisMax.Queries = append(query.Query.DisMax.Queries, index)
+	}
 	query.Aggregations = make(map[string]esSearchAggr)
 	query.Aggregations["resource"] = esSearchAggr{
 		Terms: esSearchAggrTerm{
