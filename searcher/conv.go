@@ -167,7 +167,7 @@ func conv(sr *esSearchResponse, aggregation *esSearchResponse, noHits bool) (out
 			delete(aux, "resourceType")
 			switch resType {
 			case "system:user":
-				aux["@id"] = aux["userID"]
+				aux["id"] = aux["userID"]
 				delete(aux, "userID")
 
 			case "compose:record":
