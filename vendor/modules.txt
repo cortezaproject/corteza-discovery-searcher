@@ -40,6 +40,9 @@ github.com/go-chi/jwtauth
 ## explicit
 # github.com/inconshreveable/mousetrap v1.0.0
 github.com/inconshreveable/mousetrap
+# github.com/jmoiron/sqlx v1.2.0
+## explicit
+github.com/jmoiron/sqlx/types
 # github.com/joho/godotenv v1.3.0
 ## explicit
 github.com/joho/godotenv

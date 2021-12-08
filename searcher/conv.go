@@ -2,6 +2,7 @@ package searcher
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/spf13/cast"
 	"sort"
 )
@@ -41,7 +42,7 @@ type (
 )
 
 // conv converts results from the backend into corteza-discovery (jsonld-ish) format
-func conv(sr *esSearchResponse, aggregation *esSearchResponse, noHits bool) (out *cdResults, err error) {
+func conv(sr *esSearchResponse, aggregation *esSearchResponse, noHits bool, moduleMeta map[string][]string) (out *cdResults, err error) {
 	if sr == nil {
 		return
 	}
@@ -171,6 +172,39 @@ func conv(sr *esSearchResponse, aggregation *esSearchResponse, noHits bool) (out
 				delete(aux, "userID")
 
 			case "compose:record":
+				// fixme refactor me in the morning please
+				type record struct {
+					Module struct {
+						Name     string `json:"name"`
+						Handle   string `json:"handle"`
+						ModuleId uint64 `json:"moduleId,string"`
+					} `json:"module"`
+					Namespace struct {
+						Name        string `json:"name"`
+						Handle      string `json:"handle"`
+						NamespaceId uint64 `json:"namespaceId,string"`
+					} `json:"namespace"`
+					Values map[string]interface{} `json:"values"`
+				}
+				var r record
+				if err = json.Unmarshal(h.Source, &r); err != nil {
+					return
+				}
+				type nameMe struct {
+					Name  string      `json:"name"`
+					Value interface{} `json:"value"`
+				}
+				key := fmt.Sprintf("%d-%d", r.Namespace.NamespaceId, r.Module.ModuleId)
+				var slice []nameMe
+				if val, is := moduleMeta[key]; is {
+					for _, f := range val {
+						slice = append(slice, nameMe{
+							Name:  f,
+							Value: r.Values[f],
+						})
+					}
+					aux["values"] = slice
+				}
 				aux["@id"] = aux["_id"]
 				delete(aux, "_id")
 

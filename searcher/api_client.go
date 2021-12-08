@@ -36,6 +36,14 @@ func ApiClient(apiBaseUri, authBaseUri, key, secret string) (c *apiClient, err e
 	return c, err
 }
 
+func (c *apiClient) namespaces() (*http.Request, error) {
+	return c.request(fmt.Sprintf("%s/api/compose/namespace/", c.baseUri))
+}
+
+func (c *apiClient) modules(namespaceID uint64) (*http.Request, error) {
+	return c.request(fmt.Sprintf("%s/api/compose/namespace/%d/module/?sort=name+ASC", c.baseUri, namespaceID))
+}
+
 func (c *apiClient) request(endpoint string) (req *http.Request, err error) {
 	if err = c.authenticate(); err != nil {
 		return

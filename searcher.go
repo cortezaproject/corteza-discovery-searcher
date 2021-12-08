@@ -23,7 +23,7 @@ func main() {
 	log := logger.MakeDebugLogger().WithOptions(zap.AddStacktrace(zap.PanicLevel))
 	ctx := cli.Context()
 
-	api, err := searcher.ApiClient("", cfg.cortezaAuth, cfg.clientKey, cfg.clientSecret)
+	api, err := searcher.ApiClient(cfg.cortezaHttp, cfg.cortezaAuth, cfg.clientKey, cfg.clientSecret)
 	cli.HandleError(err)
 
 	esc, err := searcher.EsClient(cfg.es.addresses)

@@ -14,6 +14,7 @@ require (
 	github.com/go-chi/cors v1.0.0
 	github.com/go-chi/jwtauth v0.0.0-20190109153619-47840abb19b3
 	github.com/go-openapi/swag v0.19.15 // indirect
+	github.com/jmoiron/sqlx v1.2.0
 	github.com/joho/godotenv v1.3.0
 	github.com/labstack/echo/v4 v4.4.0 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect

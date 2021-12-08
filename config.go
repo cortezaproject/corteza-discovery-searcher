@@ -14,6 +14,7 @@ type (
 		es       struct {
 			addresses []string
 		}
+		cortezaHttp  string
 		cortezaAuth  string
 		jwtSecret    []byte
 		clientKey    string
@@ -37,13 +38,16 @@ func getConfig() (*config, error) {
 
 	return c, func() error {
 
-		baseUrl := options.EnvString(envKeyBaseUrl, "http://server:80")
+		c.cortezaHttp = options.EnvString(envKeyBaseUrl, "http://server:80")
+		if c.cortezaHttp == "" {
+			return fmt.Errorf("endpoint URL for corteza (%s) is empty or missing", envKeyAuthUrl)
+		}
 
 		c.httpAddr = options.EnvString(envKeyHttpAddr, "127.0.0.1:3101")
 
-		c.cortezaAuth = options.EnvString(envKeyAuthUrl, baseUrl+"/auth")
+		c.cortezaAuth = options.EnvString(envKeyAuthUrl, c.cortezaHttp+"/auth")
 		if c.cortezaAuth == "" {
-			return fmt.Errorf("endpount URL for corteza auth  (%s) is empty or missing", envKeyAuthUrl)
+			return fmt.Errorf("endpoint URL for corteza auth (%s) is empty or missing", envKeyAuthUrl)
 		}
 
 		if tmp := os.Getenv(envKeyJwtSecret); tmp != "" {
