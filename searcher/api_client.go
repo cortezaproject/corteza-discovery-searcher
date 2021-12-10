@@ -50,6 +50,7 @@ func (c *apiClient) request(endpoint string) (req *http.Request, err error) {
 	}
 
 	if req, err = http.NewRequest(http.MethodGet, endpoint, nil); err != nil {
+		err = fmt.Errorf("could not create request due to error: %w", err)
 		return
 	}
 
@@ -82,7 +83,7 @@ func authenticate(authBaseUri, key, secret string) (crd *credentials, err error)
 	)
 
 	form.Set("grant_type", "client_credentials")
-	form.Set("scope", "discovery")
+	form.Set("scope", "profile api discovery")
 
 	req, err = http.NewRequest(http.MethodPost, authBaseUri+"/oauth2/token", strings.NewReader(form.Encode()))
 	if err != nil {
