@@ -204,6 +204,16 @@ func conv(sr *esSearchResponse, aggregation *esSearchResponse, noHits bool, modu
 						})
 					}
 					aux["values"] = slice
+				} else {
+					for k, v := range r.Values {
+						// @todo hardcoded value
+						if len(slice) < 7 {
+							slice = append(slice, nameMe{
+								Name:  k,
+								Value: v,
+							})
+						}
+					}
 				}
 				aux["@id"] = aux["_id"]
 				delete(aux, "_id")
