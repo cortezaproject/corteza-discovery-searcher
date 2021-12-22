@@ -190,15 +190,15 @@ func conv(sr *esSearchResponse, aggregation *esSearchResponse, noHits bool, modu
 				if err = json.Unmarshal(h.Source, &r); err != nil {
 					return
 				}
-				type nameMe struct {
+				type valueJson struct {
 					Name  string      `json:"name"`
 					Value interface{} `json:"value"`
 				}
 				key := fmt.Sprintf("%d-%d", r.Namespace.NamespaceId, r.Module.ModuleId)
-				var slice []nameMe
+				var slice []valueJson
 				if val, is := moduleMeta[key]; is {
 					for _, f := range val {
-						slice = append(slice, nameMe{
+						slice = append(slice, valueJson{
 							Name:  f,
 							Value: r.Values[f],
 						})
@@ -208,7 +208,7 @@ func conv(sr *esSearchResponse, aggregation *esSearchResponse, noHits bool, modu
 					for k, v := range r.Values {
 						// @todo hardcoded value
 						if len(slice) < 7 {
-							slice = append(slice, nameMe{
+							slice = append(slice, valueJson{
 								Name:  k,
 								Value: v,
 							})

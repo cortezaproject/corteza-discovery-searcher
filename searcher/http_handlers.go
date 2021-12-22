@@ -39,9 +39,15 @@ type (
 	}
 
 	ModuleMeta struct {
-		Public    Result `json:"public"`
-		Private   Result `json:"private"`
-		Protected Result `json:"protected"`
+		Public struct {
+			Result []Result `json:"result"`
+		} `json:"public"`
+		Private struct {
+			Result []Result `json:"result"`
+		} `json:"private"`
+		Protected struct {
+			Result []Result `json:"result"`
+		} `json:"protected"`
 	}
 
 	Result struct {
@@ -192,8 +198,8 @@ func (h handlers) Search(w http.ResponseWriter, r *http.Request) {
 				err = json.Unmarshal(m.Meta, &meta)
 				if err != nil {
 					h.log.Error("failed to unmarshal module meta: %w", zap.Error(err))
-				} else if len(meta.Discovery.Private.Fields) > 0 {
-					moduleMap[key] = meta.Discovery.Private.Fields
+				} else if len(meta.Discovery.Private.Result) > 0 && len(meta.Discovery.Private.Result[0].Fields) > 0 {
+					moduleMap[key] = meta.Discovery.Private.Result[0].Fields
 				}
 			}
 		}
