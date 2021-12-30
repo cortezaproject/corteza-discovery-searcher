@@ -30,6 +30,14 @@ type (
 		} `json:"simple_query_string"`
 	}
 
+	esDisMax struct {
+		Wrap struct {
+			TieBreaker float64       `json:"tie_breaker,omitempty"`
+			Boost      float64       `json:"boost,omitempty"`
+			Queries    []interface{} `json:"queries,omitempty"`
+		} `json:"dis_max,omitempty"`
+	}
+
 	esMultiMatch struct {
 		Wrap struct {
 			Query string `json:"query"`
@@ -41,17 +49,14 @@ type (
 
 	esSearchParams struct {
 		Query struct {
-			//Bool struct {
-			//	// query context
-			//	//Must []interface{} `json:"must,omitempty"`
-			//
-			//	// filter context
-			//	Filter  []interface{} `json:"filter,omitempty"`
-			//	MustNot []interface{} `json:"must_not,omitempty"`
-			//} `json:"bool,omitempty"`
-			DisMax struct {
-				Queries []interface{} `json:"queries"`
-			} `json:"dis_max,omitempty"`
+			Bool struct {
+				// query context
+				Must []interface{} `json:"must,omitempty"`
+
+				// filter context
+				Filter  []interface{} `json:"filter,omitempty"`
+				MustNot []interface{} `json:"must_not,omitempty"`
+			} `json:"bool,omitempty"`
 		} `json:"query"`
 
 		Aggregations EsSearchAggrTerms `json:"aggs,omitempty"`
@@ -202,7 +207,7 @@ func search(ctx context.Context, esc *elasticsearch.Client, log *zap.Logger, p s
 	}
 
 	// Query MUST filter
-	//query.Query.Bool.Must = []interface{}{index}
+	query.Query.Bool.Must = []interface{}{index}
 
 	// Aggregations V1.0
 	//if len(p.aggregations) > 0 {
@@ -215,17 +220,22 @@ func search(ctx context.Context, esc *elasticsearch.Client, log *zap.Logger, p s
 
 	// Search string filter
 	if len(p.query) > 0 {
-		//query.Query.Bool.Must = append(query.Query.Bool.Must, sqs)
-		query.Query.DisMax.Queries = append(query.Query.DisMax.Queries, sqs)
+		query.Query.Bool.Must = append(query.Query.Bool.Must, sqs)
+		//query.Query.DisMax.Queries = append(query.Query.DisMax.Queries, sqs)
 	}
 
-	mm := esMultiMatch{}
+	var (
+		mm = esMultiMatch{}
+		dd esDisMax
+	)
 	for _, mAggs := range p.moduleAggs {
 		mm.Wrap.Query = mAggs
 		mm.Wrap.Type = "cross_fields"
 		mm.Wrap.Fields = []string{"name.keyword", "module.name.keyword"}
 		//query.Query.Bool.Must = append(query.Query.Bool.Must, mm)
-		query.Query.DisMax.Queries = append(query.Query.DisMax.Queries, mm)
+		//query.Query.DisMax.Queries = append(query.Query.DisMax.Queries, mm)
+
+		dd.Wrap.Queries = append(dd.Wrap.Queries, mm)
 	}
 
 	for _, nAggs := range p.namespaceAggs {
@@ -233,9 +243,14 @@ func search(ctx context.Context, esc *elasticsearch.Client, log *zap.Logger, p s
 		mm.Wrap.Type = "cross_fields"
 		mm.Wrap.Fields = []string{"name.keyword", "namespace.name.keyword"}
 		//query.Query.Bool.Must = append(query.Query.Bool.Must, mm)
-		query.Query.DisMax.Queries = append(query.Query.DisMax.Queries, mm)
+		//query.Query.DisMax.Queries = append(query.Query.DisMax.Queries, mm)
+
+		dd.Wrap.Queries = append(dd.Wrap.Queries, mm)
 	}
 
+	if len(dd.Wrap.Queries) > 0 {
+		query.Query.Bool.Must = append(query.Query.Bool.Must, dd)
+	}
 	// Aggregations V1.0 Improved fixme
 	//if len(p.aggregations) > 0 {
 	//	for _, a := range p.aggregations {
@@ -247,9 +262,9 @@ func search(ctx context.Context, esc *elasticsearch.Client, log *zap.Logger, p s
 	//	}
 	//}
 
-	if len(p.query) == 0 && len(p.moduleAggs) == 0 && len(p.namespaceAggs) == 0 {
-		query.Query.DisMax.Queries = append(query.Query.DisMax.Queries, index)
-	}
+	//if len(p.query) == 0 && len(p.moduleAggs) == 0 && len(p.namespaceAggs) == 0 {
+	//	query.Query.DisMax.Queries = append(query.Query.DisMax.Queries, index)
+	//}
 	query.Aggregations = make(map[string]esSearchAggr)
 	query.Aggregations["resource"] = esSearchAggr{
 		Terms: esSearchAggrTerm{
