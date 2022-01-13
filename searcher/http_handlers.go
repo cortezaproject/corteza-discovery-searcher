@@ -157,53 +157,56 @@ func (h handlers) Search(w http.ResponseWriter, r *http.Request) {
 	if !noHits {
 		// @todo only fetch module from result but that requires another loop to fetch module Id from es response
 		// 			TEMP fix, I have solution use elastic for the same but different index
-		if nsReq, err = h.api.namespaces(); err != nil {
-			h.log.Error("failed to prepare namespace request: %w", zap.Error(err))
-		}
-		if nsRes, err = httpClient().Do(nsReq.WithContext(ctx)); err != nil {
-			h.log.Error("failed to send namespace request: %w", zap.Error(err))
-		}
-		if nsRes.StatusCode != http.StatusOK {
-			h.log.Error("request resulted in an unexpected status: %s", zap.Error(err))
-		}
-		if err = json.NewDecoder(nsRes.Body).Decode(&nsResponse); err != nil {
-			h.log.Error("failed to decode response: %w", zap.Error(err))
-		}
-		if err = nsRes.Body.Close(); err != nil {
-			h.log.Error("failed to close response body: %w", zap.Error(err))
-		}
-
-		for _, s := range nsResponse.Response.Set {
-			if mReq, err = h.api.modules(s.NamespaceID); err != nil {
-				h.log.Error("failed to prepare module meta request: %w", zap.Error(err))
+		nsReq, err = h.api.namespaces()
+		if err != nil {
+			h.log.Warn("failed to prepare namespace request: %w", zap.Error(err))
+		} else {
+			if nsRes, err = httpClient().Do(nsReq.WithContext(ctx)); err != nil {
+				h.log.Error("failed to send namespace request: %w", zap.Error(err))
 			}
-			if mRes, err = httpClient().Do(mReq.WithContext(ctx)); err != nil {
-				h.log.Error("failed to send module request: %w", zap.Error(err))
-			}
-			if mRes.StatusCode != http.StatusOK {
+			if nsRes.StatusCode != http.StatusOK {
 				h.log.Error("request resulted in an unexpected status: %s", zap.Error(err))
 			}
-			if err = json.NewDecoder(mRes.Body).Decode(&mResponse); err != nil {
+			if err = json.NewDecoder(nsRes.Body).Decode(&nsResponse); err != nil {
 				h.log.Error("failed to decode response: %w", zap.Error(err))
 			}
-			if err = mRes.Body.Close(); err != nil {
+			if err = nsRes.Body.Close(); err != nil {
 				h.log.Error("failed to close response body: %w", zap.Error(err))
 			}
 
-			for _, m := range mResponse.Response.Set {
-				var (
-					meta moduleMeta
-					key  = fmt.Sprintf("%d-%d", s.NamespaceID, m.ModuleID)
-				)
-				err = json.Unmarshal(m.Meta, &meta)
-				if err != nil {
-					h.log.Error("failed to unmarshal module meta: %w", zap.Error(err))
-				} else if len(meta.Discovery.Private.Result) > 0 && len(meta.Discovery.Private.Result[0].Fields) > 0 {
-					moduleMap[key] = meta.Discovery.Private.Result[0].Fields
+			for _, s := range nsResponse.Response.Set {
+				if mReq, err = h.api.modules(s.NamespaceID); err != nil {
+					h.log.Error("failed to prepare module meta request: %w", zap.Error(err))
+				}
+				if mRes, err = httpClient().Do(mReq.WithContext(ctx)); err != nil {
+					h.log.Error("failed to send module request: %w", zap.Error(err))
+				}
+				if mRes.StatusCode != http.StatusOK {
+					h.log.Error("request resulted in an unexpected status: %s", zap.Error(err))
+				}
+				if err = json.NewDecoder(mRes.Body).Decode(&mResponse); err != nil {
+					h.log.Error("failed to decode response: %w", zap.Error(err))
+				}
+				if err = mRes.Body.Close(); err != nil {
+					h.log.Error("failed to close response body: %w", zap.Error(err))
+				}
+
+				for _, m := range mResponse.Response.Set {
+					var (
+						meta moduleMeta
+						key  = fmt.Sprintf("%d-%d", s.NamespaceID, m.ModuleID)
+					)
+					err = json.Unmarshal(m.Meta, &meta)
+					if err != nil {
+						h.log.Error("failed to unmarshal module meta: %w", zap.Error(err))
+					} else if len(meta.Discovery.Private.Result) > 0 && len(meta.Discovery.Private.Result[0].Fields) > 0 {
+						moduleMap[key] = meta.Discovery.Private.Result[0].Fields
+					}
 				}
 			}
 		}
 	}
+
 	if cres, err := conv(results, aggregation, noHits, moduleMap); err != nil {
 		h.log.Error("could not encode response body", zap.Error(err))
 	} else if err = json.NewEncoder(w).Encode(cres); err != nil {

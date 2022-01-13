@@ -172,6 +172,8 @@ func conv(sr *esSearchResponse, aggregation *esSearchResponse, noHits bool, modu
 				delete(aux, "userID")
 
 			case "compose:record":
+				// @todo: Remove below line and find proper solution for searsia as value needs to be in json
+				aux["customValues"] = aux["values"]
 				// fixme refactor me in the morning please
 				type record struct {
 					Module struct {
