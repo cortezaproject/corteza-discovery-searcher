@@ -186,7 +186,8 @@ func conv(sr *esSearchResponse, aggregation *esSearchResponse, noHits bool, modu
 						Handle      string `json:"handle"`
 						NamespaceId uint64 `json:"namespaceId,string"`
 					} `json:"namespace"`
-					Values map[string]interface{} `json:"values"`
+					Values      map[string]interface{} `json:"values"`
+					ValueLabels map[string]string      `json:"valueLabels"`
 				}
 				var r record
 				if err = json.Unmarshal(h.Source, &r); err != nil {
@@ -194,6 +195,7 @@ func conv(sr *esSearchResponse, aggregation *esSearchResponse, noHits bool, modu
 				}
 				type valueJson struct {
 					Name  string      `json:"name"`
+					Label string      `json:"label"`
 					Value interface{} `json:"value"`
 				}
 				key := fmt.Sprintf("%d-%d", r.Namespace.NamespaceId, r.Module.ModuleId)
@@ -202,6 +204,7 @@ func conv(sr *esSearchResponse, aggregation *esSearchResponse, noHits bool, modu
 					for _, f := range val {
 						slice = append(slice, valueJson{
 							Name:  f,
+							Label: r.ValueLabels[f],
 							Value: r.Values[f],
 						})
 					}
@@ -211,6 +214,7 @@ func conv(sr *esSearchResponse, aggregation *esSearchResponse, noHits bool, modu
 						if len(slice) < 5 {
 							slice = append(slice, valueJson{
 								Name:  k,
+								Label: r.ValueLabels[k],
 								Value: v,
 							})
 						}
@@ -219,6 +223,7 @@ func conv(sr *esSearchResponse, aggregation *esSearchResponse, noHits bool, modu
 				aux["values"] = slice
 				aux["@id"] = aux["_id"]
 				delete(aux, "_id")
+				delete(aux, "valueLabels")
 
 			case "compose:namespace":
 				aux["@id"] = aux["_id"]
