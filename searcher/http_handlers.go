@@ -27,6 +27,7 @@ type (
 				NamespaceID uint64 `json:",string"`
 				Slug        string `json:"slug"`
 
+				Name     string         `json:"name"`
 				ModuleID uint64         `json:",string"`
 				Handle   string         `json:"handle"`
 				Meta     types.JSONText `json:"meta"`
@@ -130,6 +131,9 @@ func (h handlers) Search(w http.ResponseWriter, r *http.Request) {
 		nsResponse cResponse
 		mResponse  cResponse
 		moduleMap  = make(map[string][]string)
+
+		nsHandleMap = make(map[string]string)
+		mHandleMap  = make(map[string]string)
 	)
 	results, err = search(ctx, h.esc, h.log, searchParams{
 		query:         searchString,
@@ -154,60 +158,64 @@ func (h handlers) Search(w http.ResponseWriter, r *http.Request) {
 	}
 
 	noHits := len(searchString) == 0 && len(moduleAggs) == 0 && len(namespaceAggs) == 0
-	if !noHits {
-		// @todo only fetch module from result but that requires another loop to fetch module Id from es response
-		// 			TEMP fix, I have solution use elastic for the same but different index
-		nsReq, err = h.api.namespaces()
-		if err != nil {
-			h.log.Warn("failed to prepare namespace request: %w", zap.Error(err))
-		} else {
-			if nsRes, err = httpClient().Do(nsReq.WithContext(ctx)); err != nil {
-				h.log.Error("failed to send namespace request: %w", zap.Error(err))
+	//if !noHits {
+	// @todo only fetch module from result but that requires another loop to fetch module Id from es response
+	// 			TEMP fix, I have solution use elastic for the same but different index
+	nsReq, err = h.api.namespaces()
+	if err != nil {
+		h.log.Warn("failed to prepare namespace request: %w", zap.Error(err))
+	} else {
+		if nsRes, err = httpClient().Do(nsReq.WithContext(ctx)); err != nil {
+			h.log.Error("failed to send namespace request: %w", zap.Error(err))
+		}
+		if nsRes.StatusCode != http.StatusOK {
+			h.log.Error("request resulted in an unexpected status: %s", zap.Error(err))
+		}
+		if err = json.NewDecoder(nsRes.Body).Decode(&nsResponse); err != nil {
+			h.log.Error("failed to decode response: %w", zap.Error(err))
+		}
+		if err = nsRes.Body.Close(); err != nil {
+			h.log.Error("failed to close response body: %w", zap.Error(err))
+		}
+
+		for _, s := range nsResponse.Response.Set {
+			// Get the module handles for aggs response
+			nsHandleMap[s.Name] = s.Slug
+			if mReq, err = h.api.modules(s.NamespaceID); err != nil {
+				h.log.Error("failed to prepare module meta request: %w", zap.Error(err))
 			}
-			if nsRes.StatusCode != http.StatusOK {
+			if mRes, err = httpClient().Do(mReq.WithContext(ctx)); err != nil {
+				h.log.Error("failed to send module request: %w", zap.Error(err))
+			}
+			if mRes.StatusCode != http.StatusOK {
 				h.log.Error("request resulted in an unexpected status: %s", zap.Error(err))
 			}
-			if err = json.NewDecoder(nsRes.Body).Decode(&nsResponse); err != nil {
+			if err = json.NewDecoder(mRes.Body).Decode(&mResponse); err != nil {
 				h.log.Error("failed to decode response: %w", zap.Error(err))
 			}
-			if err = nsRes.Body.Close(); err != nil {
+			if err = mRes.Body.Close(); err != nil {
 				h.log.Error("failed to close response body: %w", zap.Error(err))
 			}
 
-			for _, s := range nsResponse.Response.Set {
-				if mReq, err = h.api.modules(s.NamespaceID); err != nil {
-					h.log.Error("failed to prepare module meta request: %w", zap.Error(err))
-				}
-				if mRes, err = httpClient().Do(mReq.WithContext(ctx)); err != nil {
-					h.log.Error("failed to send module request: %w", zap.Error(err))
-				}
-				if mRes.StatusCode != http.StatusOK {
-					h.log.Error("request resulted in an unexpected status: %s", zap.Error(err))
-				}
-				if err = json.NewDecoder(mRes.Body).Decode(&mResponse); err != nil {
-					h.log.Error("failed to decode response: %w", zap.Error(err))
-				}
-				if err = mRes.Body.Close(); err != nil {
-					h.log.Error("failed to close response body: %w", zap.Error(err))
-				}
-
-				for _, m := range mResponse.Response.Set {
-					var (
-						meta moduleMeta
-						key  = fmt.Sprintf("%d-%d", s.NamespaceID, m.ModuleID)
-					)
-					err = json.Unmarshal(m.Meta, &meta)
-					if err != nil {
-						h.log.Error("failed to unmarshal module meta: %w", zap.Error(err))
-					} else if len(meta.Discovery.Private.Result) > 0 && len(meta.Discovery.Private.Result[0].Fields) > 0 {
-						moduleMap[key] = meta.Discovery.Private.Result[0].Fields
-					}
+			for _, m := range mResponse.Response.Set {
+				// Get the module handles for aggs response
+				mHandleMap[m.Name] = m.Handle
+				var (
+					meta moduleMeta
+					key  = fmt.Sprintf("%d-%d", s.NamespaceID, m.ModuleID)
+				)
+				err = json.Unmarshal(m.Meta, &meta)
+				if err != nil {
+					h.log.Error("failed to unmarshal module meta: %w", zap.Error(err))
+				} else if len(meta.Discovery.Private.Result) > 0 && len(meta.Discovery.Private.Result[0].Fields) > 0 {
+					moduleMap[key] = meta.Discovery.Private.Result[0].Fields
 				}
 			}
 		}
 	}
+	//}
 
-	if cres, err := conv(results, aggregation, noHits, moduleMap); err != nil {
+	if cres, err := conv(results, aggregation, noHits, moduleMap, nsHandleMap, mHandleMap); err != nil {
 		h.log.Error("could not encode response body", zap.Error(err))
 	} else if err = json.NewEncoder(w).Encode(cres); err != nil {
 		h.log.Error("could not encode response body", zap.Error(err))

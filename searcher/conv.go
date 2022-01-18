@@ -35,14 +35,15 @@ type (
 	}
 
 	cdAggregationHits struct {
-		Name string `json:"name"`
-		Hits int    `json:"hits"`
+		Name  string `json:"name"`
+		Label string `json:"label"`
+		Hits  int    `json:"hits"`
 	}
 	// ldCtx map[string]interface{}
 )
 
 // conv converts results from the backend into corteza-discovery (jsonld-ish) format
-func conv(sr *esSearchResponse, aggregation *esSearchResponse, noHits bool, moduleMeta map[string][]string) (out *cdResults, err error) {
+func conv(sr *esSearchResponse, aggregation *esSearchResponse, noHits bool, moduleMeta map[string][]string, nsHandleMap map[string]string, mHandleMap map[string]string) (out *cdResults, err error) {
 	if sr == nil {
 		return
 	}
@@ -73,8 +74,9 @@ func conv(sr *esSearchResponse, aggregation *esSearchResponse, noHits bool, modu
 					nsTotalHits[resourceName] = val
 				} else {
 					nsTotalHits[resourceName] = cdAggregationHits{
-						Name: resourceName,
-						Hits: subBucket.DocCount,
+						Name:  resourceName,
+						Label: nsHandleMap[resourceName],
+						Hits:  subBucket.DocCount,
 					}
 				}
 			}
@@ -85,8 +87,9 @@ func conv(sr *esSearchResponse, aggregation *esSearchResponse, noHits bool, modu
 					mTotalHits[resourceName] = val
 				} else {
 					mTotalHits[resourceName] = cdAggregationHits{
-						Name: resourceName,
-						Hits: subBucket.DocCount,
+						Name:  resourceName,
+						Label: mHandleMap[resourceName],
+						Hits:  subBucket.DocCount,
 					}
 				}
 			}
@@ -100,8 +103,9 @@ func conv(sr *esSearchResponse, aggregation *esSearchResponse, noHits bool, modu
 				nsTotalHits[resourceName] = val
 			} else {
 				nsTotalHits[resourceName] = cdAggregationHits{
-					Name: resourceName,
-					Hits: nsBucket.DocCount,
+					Name:  resourceName,
+					Label: nsHandleMap[resourceName],
+					Hits:  nsBucket.DocCount,
 				}
 			}
 		}
@@ -115,8 +119,9 @@ func conv(sr *esSearchResponse, aggregation *esSearchResponse, noHits bool, modu
 
 			} else {
 				mTotalHits[resourceName] = cdAggregationHits{
-					Name: resourceName,
-					Hits: mBucket.DocCount,
+					Name:  resourceName,
+					Label: mHandleMap[resourceName],
+					Hits:  mBucket.DocCount,
 				}
 			}
 		}
