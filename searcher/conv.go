@@ -178,7 +178,7 @@ func conv(sr *esSearchResponse, aggregation *esSearchResponse, noHits bool, modu
 
 			case "compose:record":
 				// @todo: Remove below line and find proper solution for searsia as value needs to be in json
-				aux["customValues"] = aux["values"]
+				ssVal := make(map[string]interface{})
 				// fixme refactor me in the morning please
 				type record struct {
 					Module struct {
@@ -212,6 +212,12 @@ func conv(sr *esSearchResponse, aggregation *esSearchResponse, noHits bool, modu
 							Label: r.ValueLabels[f],
 							Value: r.Values[f],
 						})
+
+						if vv, ok := r.Values[f].([]interface{}); ok {
+							if len(vv) > 0 {
+								ssVal[f] = vv[0]
+							}
+						}
 					}
 				} else {
 					for k, v := range r.Values {
@@ -222,9 +228,16 @@ func conv(sr *esSearchResponse, aggregation *esSearchResponse, noHits bool, modu
 								Label: r.ValueLabels[k],
 								Value: v,
 							})
+
+							if vv, ok := v.([]interface{}); ok {
+								if len(vv) > 0 {
+									ssVal[k] = vv[0]
+								}
+							}
 						}
 					}
 				}
+				aux["customValues"] = ssVal
 				aux["values"] = slice
 				aux["@id"] = aux["_id"]
 				delete(aux, "_id")
