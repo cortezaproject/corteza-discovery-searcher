@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/spf13/cast"
 	"sort"
+	"time"
 )
 
 type (
@@ -40,6 +41,14 @@ type (
 		Hits  int    `json:"hits"`
 	}
 	// ldCtx map[string]interface{}
+
+	createdBy struct {
+		UserID   uint64 `json:"userID,string"`
+		Email    string `json:"email,omitempty"`
+		Name     string `json:"name,omitempty"`
+		Username string `json:"username,omitempty"`
+		Handle   string `json:"handle,omitempty"`
+	}
 )
 
 // conv converts results from the backend into corteza-discovery (jsonld-ish) format
@@ -180,20 +189,32 @@ func conv(sr *esSearchResponse, aggregation *esSearchResponse, noHits bool, modu
 				// @todo: Remove below line and find proper solution for searsia as value needs to be in json
 				ssVal := make(map[string]interface{})
 				// fixme refactor me in the morning please
-				type record struct {
-					Module struct {
-						Name     string `json:"name"`
-						Handle   string `json:"handle"`
-						ModuleId uint64 `json:"moduleId,string"`
-					} `json:"module"`
-					Namespace struct {
-						Name        string `json:"name"`
-						Handle      string `json:"handle"`
-						NamespaceId uint64 `json:"namespaceId,string"`
-					} `json:"namespace"`
-					Values      map[string]interface{} `json:"values"`
-					ValueLabels map[string]string      `json:"valueLabels"`
-				}
+				type (
+					created struct {
+						At *time.Time `json:"at,omitempty"`
+						By string     `json:"by,omitempty"`
+					}
+
+					record struct {
+						Created struct {
+							At *time.Time `json:"at,omitempty"`
+							By *createdBy `json:"by,omitempty"`
+						} `json:"created"`
+						Module struct {
+							Name     string `json:"name"`
+							Handle   string `json:"handle"`
+							ModuleId uint64 `json:"moduleId,string"`
+						} `json:"module"`
+						Namespace struct {
+							Name        string `json:"name"`
+							Handle      string `json:"handle"`
+							NamespaceId uint64 `json:"namespaceId,string"`
+						} `json:"namespace"`
+						Values      map[string]interface{} `json:"values"`
+						ValueLabels map[string]string      `json:"valueLabels"`
+					}
+				)
+
 				var r record
 				if err = json.Unmarshal(h.Source, &r); err != nil {
 					return
@@ -204,7 +225,14 @@ func conv(sr *esSearchResponse, aggregation *esSearchResponse, noHits bool, modu
 					Value interface{} `json:"value"`
 				}
 				key := fmt.Sprintf("%d-%d", r.Namespace.NamespaceId, r.Module.ModuleId)
-				var slice []valueJson
+				var (
+					slice []valueJson
+					uc    = created{
+						At: r.Created.At,
+						By: getCreatedBy(r.Created.By),
+					}
+				)
+
 				if val, is := moduleMeta[key]; is {
 					for _, f := range val {
 						slice = append(slice, valueJson{
@@ -237,6 +265,7 @@ func conv(sr *esSearchResponse, aggregation *esSearchResponse, noHits bool, modu
 						}
 					}
 				}
+				aux["created"] = uc
 				aux["customValues"] = ssVal
 				aux["values"] = slice
 				aux["@id"] = aux["_id"]
@@ -280,4 +309,20 @@ func getResourceName(resType string) string {
 	default:
 		return "Resource"
 	}
+}
+
+func getCreatedBy(user *createdBy) string {
+	if user == nil {
+		return ""
+	}
+	if len(user.Name) > 0 {
+		return user.Name
+	} else if len(user.Username) > 0 {
+		return user.Username
+	} else if len(user.Email) > 0 {
+		return user.Email
+	} else if user.UserID > 0 {
+		return fmt.Sprintf("%d", user.UserID)
+	}
+	return ""
 }
