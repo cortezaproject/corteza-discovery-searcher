@@ -160,7 +160,6 @@ func (h handlers) Search(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	//if len(searchString) == 0 {
 	nsAggregation, err = search(ctx, h.esc, h.log, searchParams{
 		size:    size,
 		dumpRaw: r.FormValue("dump") != "",
@@ -171,8 +170,78 @@ func (h handlers) Search(w http.ResponseWriter, r *http.Request) {
 	}
 	//}
 
-	if aggregation != nil && nsAggregation != nil {
-		aggregation.Aggregations.Namespace = nsAggregation.Aggregations.Namespace
+	// append all namespace agg with counts no matter what
+	if len(searchString) == 0 {
+		if aggregation != nil && nsAggregation != nil {
+			aggregation.Aggregations.Namespace = nsAggregation.Aggregations.Namespace
+		}
+	} else {
+		if results != nil && nsAggregation != nil {
+			nsMap := make(map[string]struct {
+				Key      string `json:"key"`
+				DocCount int    `json:"doc_count"`
+			})
+			for _, bucket := range results.Aggregations.Namespace.Buckets {
+				nsMap[bucket.Key] = bucket
+			}
+
+			var buckets []struct {
+				Key      string `json:"key"`
+				DocCount int    `json:"doc_count"`
+			}
+			for _, bucket := range nsAggregation.Aggregations.Namespace.Buckets {
+				val, ok := nsMap[bucket.Key]
+				if ok {
+					val.DocCount = nsMap[bucket.Key].DocCount
+				} else {
+					val.Key = bucket.Key
+					val.DocCount = 0
+				}
+				buckets = append(buckets, val)
+			}
+
+			results.Aggregations.Namespace.Buckets = buckets
+		}
+	}
+
+	// append module agg response which are not in es response
+	if results != nil && len(moduleAggs) > 0 {
+		mMap := make(map[string]struct {
+			Key      string `json:"key"`
+			DocCount int    `json:"doc_count"`
+		})
+		var bb []struct {
+			Key      string `json:"key"`
+			DocCount int    `json:"doc_count"`
+		}
+		for _, b := range results.Aggregations.Module.Buckets {
+			mMap = map[string]struct {
+				Key      string `json:"key"`
+				DocCount int    `json:"doc_count"`
+			}{
+				b.Key: b,
+			}
+			bb = append(bb, b)
+		}
+
+		for _, agg := range moduleAggs {
+			if _, ok := mMap[agg]; !ok {
+				mMap = map[string]struct {
+					Key      string `json:"key"`
+					DocCount int    `json:"doc_count"`
+				}{
+					agg: {Key: agg, DocCount: 0},
+				}
+				bb = append(bb, struct {
+					Key      string `json:"key"`
+					DocCount int    `json:"doc_count"`
+				}{Key: agg, DocCount: 0})
+			}
+		}
+
+		if len(bb) > 0 {
+			results.Aggregations.Module.Buckets = bb
+		}
 	}
 
 	noHits := len(searchString) == 0 && len(moduleAggs) == 0 && len(namespaceAggs) == 0
