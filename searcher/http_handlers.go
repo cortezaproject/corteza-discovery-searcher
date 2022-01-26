@@ -120,9 +120,10 @@ func (h handlers) Search(w http.ResponseWriter, r *http.Request) {
 		moduleAggs    = r.Form["moduleAggs"]
 		namespaceAggs = r.Form["namespaceAggs"]
 
-		results     *esSearchResponse
-		aggregation *esSearchResponse
-		err         error
+		results       *esSearchResponse
+		aggregation   *esSearchResponse
+		nsAggregation *esSearchResponse
+		err           error
 
 		nsReq      *http.Request
 		nsRes      *http.Response
@@ -147,15 +148,32 @@ func (h handlers) Search(w http.ResponseWriter, r *http.Request) {
 		h.log.Error("could not execute search", zap.Error(err))
 	}
 
+	if len(searchString) == 0 {
+		aggregation, err = search(ctx, h.esc, h.log, searchParams{
+			size:          size,
+			dumpRaw:       r.FormValue("dump") != "",
+			namespaceAggs: namespaceAggs,
+			aggOnly:       true,
+		})
+		if err != nil {
+			h.log.Error("could not execute aggregation search", zap.Error(err))
+		}
+	}
+
 	//if len(searchString) == 0 {
-	//	aggregation, err = search(ctx, h.esc, h.log, searchParams{
-	//		size:    size,
-	//		dumpRaw: r.FormValue("dump") != "",
-	//	})
-	//	if err != nil {
-	//		h.log.Error("could not execute aggregation search", zap.Error(err))
-	//	}
+	nsAggregation, err = search(ctx, h.esc, h.log, searchParams{
+		size:    size,
+		dumpRaw: r.FormValue("dump") != "",
+		aggOnly: true,
+	})
+	if err != nil {
+		h.log.Error("could not execute aggregation search", zap.Error(err))
+	}
 	//}
+
+	if aggregation != nil && nsAggregation != nil {
+		aggregation.Aggregations.Namespace = nsAggregation.Aggregations.Namespace
+	}
 
 	noHits := len(searchString) == 0 && len(moduleAggs) == 0 && len(namespaceAggs) == 0
 	//if !noHits {

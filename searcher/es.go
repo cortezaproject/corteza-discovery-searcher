@@ -158,6 +158,8 @@ type (
 		namespaceAggs []string
 		dumpRaw       bool
 		size          int
+
+		aggOnly bool
 	}
 )
 
@@ -259,27 +261,27 @@ func search(ctx context.Context, esc *elasticsearch.Client, log *zap.Logger, p s
 	}
 
 	// no need now since we are adding below as filter
-	//for _, nAggs := range p.namespaceAggs {
-	//	mm.Wrap.Query = nAggs
-	//	mm.Wrap.Type = "cross_fields"
-	//	mm.Wrap.Fields = []string{"name.keyword", "namespace.name.keyword"}
-	//	//query.Query.Bool.Must = append(query.Query.Bool.Must, mm)
-	//	//query.Query.DisMax.Queries = append(query.Query.DisMax.Queries, mm)
-	//
-	//	dd.Wrap.Queries = append(dd.Wrap.Queries, mm)
-	//}
+	for _, nAggs := range p.namespaceAggs {
+		mm.Wrap.Query = nAggs
+		mm.Wrap.Type = "cross_fields"
+		mm.Wrap.Fields = []string{"namespace.name.keyword"}
+		//query.Query.Bool.Must = append(query.Query.Bool.Must, mm)
+		//query.Query.DisMax.Queries = append(query.Query.DisMax.Queries, mm)
+
+		dd.Wrap.Queries = append(dd.Wrap.Queries, mm)
+	}
 
 	if len(dd.Wrap.Queries) > 0 {
 		query.Query.Bool.Must = append(query.Query.Bool.Must, dd)
 	}
 
-	if !noNSFilter {
-		nsf := make(map[string]interface{})
-		nsf["terms"] = map[string][]string{
-			"namespace.name.keyword": p.namespaceAggs,
-		}
-		query.Query.Bool.Filter = append(query.Query.Bool.Filter, nsf)
-	}
+	//if !noNSFilter {
+	//	nsf := make(map[string]interface{})
+	//	nsf["terms"] = map[string][]string{
+	//		"namespace.name.keyword": p.namespaceAggs,
+	//	}
+	//	query.Query.Bool.Filter = append(query.Query.Bool.Filter, nsf)
+	//}
 
 	// Aggregations V1.0 Improved fixme
 	//if len(p.aggregations) > 0 {
@@ -303,10 +305,7 @@ func search(ctx context.Context, esc *elasticsearch.Client, log *zap.Logger, p s
 		},
 	}
 
-	fmt.Println("len(p.namespaceAggs): ", p.namespaceAggs)
-	fmt.Println("!noNSFilter || !noQ: ", !noNSFilter || !noQ)
-	fmt.Println("!noNSFilter || !noQ 222: ", !noNSFilter, !noQ)
-	if !noNSFilter || !noQ {
+	if !noQ || !noNSFilter {
 		query.Aggregations["module"] = esSearchAggr{
 			Terms: esSearchAggrTerm{
 				Field: "module.name.keyword",
