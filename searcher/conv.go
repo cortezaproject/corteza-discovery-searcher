@@ -165,8 +165,8 @@ func conv(sr *esSearchResponse, aggregation *esSearchResponse, noHits bool, modu
 		sort.Slice(nsAggregation.ResourceName, func(i, j int) bool {
 			return nsAggregation.ResourceName[i].Name < nsAggregation.ResourceName[j].Name
 		})
+		out.Aggregations = append(out.Aggregations, nsAggregation)
 	}
-	out.Aggregations = append(out.Aggregations, nsAggregation)
 
 	mAggregation := cdAggregation{
 		Name:         "Module",
@@ -198,8 +198,8 @@ func conv(sr *esSearchResponse, aggregation *esSearchResponse, noHits bool, modu
 		sort.Slice(mAggregation.ResourceName, func(i, j int) bool {
 			return mAggregation.ResourceName[i].Name < mAggregation.ResourceName[j].Name
 		})
+		out.Aggregations = append(out.Aggregations, mAggregation)
 	}
-	out.Aggregations = append(out.Aggregations, mAggregation)
 
 	if !noHits {
 	hits:
@@ -306,10 +306,13 @@ func conv(sr *esSearchResponse, aggregation *esSearchResponse, noHits bool, modu
 			case "compose:namespace":
 				aux["@id"] = aux["_id"]
 				delete(aux, "_id")
+				delete(aux, "Namespace")
 
 			case "compose:module":
 				aux["@id"] = aux["_id"]
 				delete(aux, "_id")
+				delete(aux, "Namespace")
+				delete(aux, "Module")
 
 			default:
 				continue hits
