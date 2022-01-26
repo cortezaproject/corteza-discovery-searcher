@@ -159,7 +159,8 @@ type (
 		dumpRaw       bool
 		size          int
 
-		aggOnly bool
+		aggOnly  bool
+		mAggOnly bool
 	}
 )
 

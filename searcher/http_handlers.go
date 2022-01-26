@@ -123,6 +123,7 @@ func (h handlers) Search(w http.ResponseWriter, r *http.Request) {
 		results       *esSearchResponse
 		aggregation   *esSearchResponse
 		nsAggregation *esSearchResponse
+		mAggregation  *esSearchResponse
 		err           error
 
 		nsReq      *http.Request
@@ -160,6 +161,7 @@ func (h handlers) Search(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// append all namespace agg with counts no matter what
 	nsAggregation, err = search(ctx, h.esc, h.log, searchParams{
 		size:    size,
 		dumpRaw: r.FormValue("dump") != "",
@@ -168,9 +170,6 @@ func (h handlers) Search(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		h.log.Error("could not execute aggregation search", zap.Error(err))
 	}
-	//}
-
-	// append all namespace agg with counts no matter what
 	if len(searchString) == 0 {
 		if aggregation != nil && nsAggregation != nil {
 			aggregation.Aggregations.Namespace = nsAggregation.Aggregations.Namespace
@@ -201,6 +200,23 @@ func (h handlers) Search(w http.ResponseWriter, r *http.Request) {
 			}
 
 			results.Aggregations.Namespace.Buckets = buckets
+		}
+	}
+
+	mAggregation, err = search(ctx, h.esc, h.log, searchParams{
+		size:          size,
+		dumpRaw:       r.FormValue("dump") != "",
+		query:         searchString,
+		namespaceAggs: namespaceAggs,
+		aggOnly:       true,
+		mAggOnly:      true,
+	})
+	if err != nil {
+		h.log.Error("could not execute aggregation search", zap.Error(err))
+	}
+	if len(searchString) > 0 {
+		if results != nil && mAggregation != nil {
+			results.Aggregations.Module = mAggregation.Aggregations.Module
 		}
 	}
 
