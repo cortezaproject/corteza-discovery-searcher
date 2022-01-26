@@ -147,15 +147,15 @@ func (h handlers) Search(w http.ResponseWriter, r *http.Request) {
 		h.log.Error("could not execute search", zap.Error(err))
 	}
 
-	if len(searchString) == 0 {
-		aggregation, err = search(ctx, h.esc, h.log, searchParams{
-			size:    size,
-			dumpRaw: r.FormValue("dump") != "",
-		})
-		if err != nil {
-			h.log.Error("could not execute aggregation search", zap.Error(err))
-		}
-	}
+	//if len(searchString) == 0 {
+	//	aggregation, err = search(ctx, h.esc, h.log, searchParams{
+	//		size:    size,
+	//		dumpRaw: r.FormValue("dump") != "",
+	//	})
+	//	if err != nil {
+	//		h.log.Error("could not execute aggregation search", zap.Error(err))
+	//	}
+	//}
 
 	noHits := len(searchString) == 0 && len(moduleAggs) == 0 && len(namespaceAggs) == 0
 	//if !noHits {

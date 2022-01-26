@@ -65,82 +65,97 @@ func conv(sr *esSearchResponse, aggregation *esSearchResponse, noHits bool, modu
 	nsTotalHits := make(map[string]cdAggregationHits)
 	mTotalHits := make(map[string]cdAggregationHits)
 
+	_ = nsTotalHits
 	aggsRes := sr.Aggregations
 	if aggregation != nil {
 		aggsRes = aggregation.Aggregations
 	}
-	for _, bucket := range aggsRes.Resource.Buckets {
-		bucketName := getResourceName(bucket.Key)
-		if bucketName == "User" {
-			continue
-		}
-
-		for _, subBucket := range bucket.ResourceName.Buckets {
-			resourceName := subBucket.Key
-			if bucketName == "Namespace" {
-				if val, is := nsTotalHits[resourceName]; is {
-					val.Hits += subBucket.DocCount
-					nsTotalHits[resourceName] = val
-				} else {
-					nsTotalHits[resourceName] = cdAggregationHits{
-						Name:  resourceName,
-						Label: nsHandleMap[resourceName],
-						Hits:  subBucket.DocCount,
-					}
-				}
-			}
-
-			if bucketName == "Module" {
-				if val, is := mTotalHits[resourceName]; is {
-					val.Hits += subBucket.DocCount
-					mTotalHits[resourceName] = val
-				} else {
-					mTotalHits[resourceName] = cdAggregationHits{
-						Name:  resourceName,
-						Label: mHandleMap[resourceName],
-						Hits:  subBucket.DocCount,
-					}
-				}
-			}
-		}
-
-		// Namespace total aggs hit counts
-		for _, nsBucket := range bucket.Namespaces.Buckets {
-			resourceName := nsBucket.Key
-			if val, is := nsTotalHits[resourceName]; is {
-				val.Hits += nsBucket.DocCount
-				nsTotalHits[resourceName] = val
-			} else {
-				nsTotalHits[resourceName] = cdAggregationHits{
-					Name:  resourceName,
-					Label: nsHandleMap[resourceName],
-					Hits:  nsBucket.DocCount,
-				}
-			}
-		}
-
-		// Module total aggs hit counts
-		for _, mBucket := range bucket.Modules.Buckets {
-			resourceName := mBucket.Key
-			if val, is := mTotalHits[resourceName]; is {
-				val.Hits += mBucket.DocCount
-				mTotalHits[resourceName] = val
-
-			} else {
-				mTotalHits[resourceName] = cdAggregationHits{
-					Name:  resourceName,
-					Label: mHandleMap[resourceName],
-					Hits:  mBucket.DocCount,
-				}
-			}
-		}
-	}
+	//for _, bucket := range aggsRes.Resource.Buckets {
+	//	bucketName := getResourceName(bucket.Key)
+	//	if bucketName == "User" {
+	//		continue
+	//	}
+	//
+	//	for _, subBucket := range bucket.ResourceName.Buckets {
+	//		resourceName := subBucket.Key
+	//		if bucketName == "Namespace" {
+	//			if val, is := nsTotalHits[resourceName]; is {
+	//				val.Hits += subBucket.DocCount
+	//				nsTotalHits[resourceName] = val
+	//			} else {
+	//				nsTotalHits[resourceName] = cdAggregationHits{
+	//					Name:  resourceName,
+	//					Label: nsHandleMap[resourceName],
+	//					Hits:  subBucket.DocCount,
+	//				}
+	//			}
+	//		}
+	//
+	//		if bucketName == "Module" {
+	//			if val, is := mTotalHits[resourceName]; is {
+	//				val.Hits += subBucket.DocCount
+	//				mTotalHits[resourceName] = val
+	//			} else {
+	//				mTotalHits[resourceName] = cdAggregationHits{
+	//					Name:  resourceName,
+	//					Label: mHandleMap[resourceName],
+	//					Hits:  subBucket.DocCount,
+	//				}
+	//			}
+	//		}
+	//	}
+	//
+	//	// Namespace total aggs hit counts
+	//	for _, nsBucket := range bucket.Namespaces.Buckets {
+	//		resourceName := nsBucket.Key
+	//		if val, is := nsTotalHits[resourceName]; is {
+	//			val.Hits += nsBucket.DocCount
+	//			nsTotalHits[resourceName] = val
+	//		} else {
+	//			nsTotalHits[resourceName] = cdAggregationHits{
+	//				Name:  resourceName,
+	//				Label: nsHandleMap[resourceName],
+	//				Hits:  nsBucket.DocCount,
+	//			}
+	//		}
+	//	}
+	//
+	//	// Module total aggs hit counts
+	//	for _, mBucket := range bucket.Modules.Buckets {
+	//		resourceName := mBucket.Key
+	//		if val, is := mTotalHits[resourceName]; is {
+	//			val.Hits += mBucket.DocCount
+	//			mTotalHits[resourceName] = val
+	//
+	//		} else {
+	//			mTotalHits[resourceName] = cdAggregationHits{
+	//				Name:  resourceName,
+	//				Label: mHandleMap[resourceName],
+	//				Hits:  mBucket.DocCount,
+	//			}
+	//		}
+	//	}
+	//}
 
 	nsAggregation := cdAggregation{
 		Name:         "Namespace",
 		Resource:     "compose:namespace",
 		Hits:         0,
 		ResourceName: []cdAggregationHits{},
+	}
+	for _, bucket := range aggsRes.Namespace.Buckets {
+		resourceName := bucket.Key
+
+		if val, is := nsTotalHits[resourceName]; is {
+			val.Hits += bucket.DocCount
+			nsTotalHits[resourceName] = val
+		} else {
+			nsTotalHits[resourceName] = cdAggregationHits{
+				Name:  resourceName,
+				Label: nsHandleMap[resourceName],
+				Hits:  bucket.DocCount,
+			}
+		}
 	}
 	for _, nsHits := range nsTotalHits {
 		nsAggregation.Hits += nsHits.Hits
@@ -159,6 +174,22 @@ func conv(sr *esSearchResponse, aggregation *esSearchResponse, noHits bool, modu
 		Hits:         0,
 		ResourceName: []cdAggregationHits{},
 	}
+
+	for _, bucket := range aggsRes.Module.Buckets {
+		resourceName := bucket.Key
+
+		if val, is := mTotalHits[resourceName]; is {
+			val.Hits += bucket.DocCount
+			mTotalHits[resourceName] = val
+		} else {
+			mTotalHits[resourceName] = cdAggregationHits{
+				Name:  resourceName,
+				Label: mHandleMap[resourceName],
+				Hits:  bucket.DocCount,
+			}
+		}
+	}
+
 	for _, mHits := range mTotalHits {
 		mAggregation.Hits += mHits.Hits
 		mAggregation.ResourceName = append(mAggregation.ResourceName, mHits)

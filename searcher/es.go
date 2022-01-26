@@ -102,38 +102,54 @@ type (
 	}
 
 	esSearchAggregations struct {
-		Resource struct {
-			DocCountErrorUpperBound int `json:"-"`
-			SumOtherDocCount        int `json:"-"`
+		//Resource struct {
+		//	DocCountErrorUpperBound int `json:"-"`
+		//	SumOtherDocCount        int `json:"-"`
+		//	Buckets                 []struct {
+		//		Key          string `json:"key"`
+		//		DocCount     int    `json:"doc_count"`
+		//		ResourceName struct {
+		//			DocCountErrorUpperBound int `json:"-"`
+		//			SumOtherDocCount        int `json:"-"`
+		//			Buckets                 []struct {
+		//				Key      string `json:"key"`
+		//				DocCount int    `json:"doc_count"`
+		//			} `json:"buckets"`
+		//		} `json:"resourceName"`
+		//		Namespaces struct {
+		//			DocCountErrorUpperBound int `json:"-"`
+		//			SumOtherDocCount        int `json:"-"`
+		//			Buckets                 []struct {
+		//				Key      string `json:"key"`
+		//				DocCount int    `json:"doc_count"`
+		//			} `json:"buckets"`
+		//		} `json:"namespaces"`
+		//		Modules struct {
+		//			DocCountErrorUpperBound int `json:"-"`
+		//			SumOtherDocCount        int `json:"-"`
+		//			Buckets                 []struct {
+		//				Key      string `json:"key"`
+		//				DocCount int    `json:"doc_count"`
+		//			} `json:"buckets"`
+		//		} `json:"modules"`
+		//	} `json:"buckets"`
+		//} `json:"resource"`
+		Module struct {
+			DocCountErrorUpperBound int `json:"doc_count_error_upper_bound"`
+			SumOtherDocCount        int `json:"sum_other_doc_count"`
 			Buckets                 []struct {
-				Key          string `json:"key"`
-				DocCount     int    `json:"doc_count"`
-				ResourceName struct {
-					DocCountErrorUpperBound int `json:"-"`
-					SumOtherDocCount        int `json:"-"`
-					Buckets                 []struct {
-						Key      string `json:"key"`
-						DocCount int    `json:"doc_count"`
-					} `json:"buckets"`
-				} `json:"resourceName"`
-				Namespaces struct {
-					DocCountErrorUpperBound int `json:"-"`
-					SumOtherDocCount        int `json:"-"`
-					Buckets                 []struct {
-						Key      string `json:"key"`
-						DocCount int    `json:"doc_count"`
-					} `json:"buckets"`
-				} `json:"namespaces"`
-				Modules struct {
-					DocCountErrorUpperBound int `json:"-"`
-					SumOtherDocCount        int `json:"-"`
-					Buckets                 []struct {
-						Key      string `json:"key"`
-						DocCount int    `json:"doc_count"`
-					} `json:"buckets"`
-				} `json:"modules"`
+				Key      string `json:"key"`
+				DocCount int    `json:"doc_count"`
 			} `json:"buckets"`
-		} `json:"resource"`
+		} `json:"module"`
+		Namespace struct {
+			DocCountErrorUpperBound int `json:"doc_count_error_upper_bound"`
+			SumOtherDocCount        int `json:"sum_other_doc_count"`
+			Buckets                 []struct {
+				Key      string `json:"key"`
+				DocCount int    `json:"doc_count"`
+			} `json:"buckets"`
+		} `json:"namespace"`
 	}
 
 	searchParams struct {
@@ -172,6 +188,9 @@ func search(ctx context.Context, esc *elasticsearch.Client, log *zap.Logger, p s
 		}
 	}
 
+	noQ := len(p.query) == 0
+	noNSFilter := len(p.namespaceAggs) == 0
+	//noMFilter := len(p.moduleAggs) == 0
 	sqs := esSimpleQueryString{}
 	sqs.Wrap.Query = p.query
 
@@ -219,7 +238,8 @@ func search(ctx context.Context, esc *elasticsearch.Client, log *zap.Logger, p s
 	//}
 
 	// Search string filter
-	if len(p.query) > 0 {
+	if !noQ {
+		sqs.Wrap.Query = fmt.Sprintf("%s*", sqs.Wrap.Query)
 		query.Query.Bool.Must = append(query.Query.Bool.Must, sqs)
 		//query.Query.DisMax.Queries = append(query.Query.DisMax.Queries, sqs)
 	}
@@ -231,26 +251,36 @@ func search(ctx context.Context, esc *elasticsearch.Client, log *zap.Logger, p s
 	for _, mAggs := range p.moduleAggs {
 		mm.Wrap.Query = mAggs
 		mm.Wrap.Type = "cross_fields"
-		mm.Wrap.Fields = []string{"name.keyword", "module.name.keyword"}
+		mm.Wrap.Fields = []string{"module.name.keyword"}
 		//query.Query.Bool.Must = append(query.Query.Bool.Must, mm)
 		//query.Query.DisMax.Queries = append(query.Query.DisMax.Queries, mm)
 
 		dd.Wrap.Queries = append(dd.Wrap.Queries, mm)
 	}
 
-	for _, nAggs := range p.namespaceAggs {
-		mm.Wrap.Query = nAggs
-		mm.Wrap.Type = "cross_fields"
-		mm.Wrap.Fields = []string{"name.keyword", "namespace.name.keyword"}
-		//query.Query.Bool.Must = append(query.Query.Bool.Must, mm)
-		//query.Query.DisMax.Queries = append(query.Query.DisMax.Queries, mm)
-
-		dd.Wrap.Queries = append(dd.Wrap.Queries, mm)
-	}
+	// no need now since we are adding below as filter
+	//for _, nAggs := range p.namespaceAggs {
+	//	mm.Wrap.Query = nAggs
+	//	mm.Wrap.Type = "cross_fields"
+	//	mm.Wrap.Fields = []string{"name.keyword", "namespace.name.keyword"}
+	//	//query.Query.Bool.Must = append(query.Query.Bool.Must, mm)
+	//	//query.Query.DisMax.Queries = append(query.Query.DisMax.Queries, mm)
+	//
+	//	dd.Wrap.Queries = append(dd.Wrap.Queries, mm)
+	//}
 
 	if len(dd.Wrap.Queries) > 0 {
 		query.Query.Bool.Must = append(query.Query.Bool.Must, dd)
 	}
+
+	if !noNSFilter {
+		nsf := make(map[string]interface{})
+		nsf["terms"] = map[string][]string{
+			"namespace.name.keyword": p.namespaceAggs,
+		}
+		query.Query.Bool.Filter = append(query.Query.Bool.Filter, nsf)
+	}
+
 	// Aggregations V1.0 Improved fixme
 	//if len(p.aggregations) > 0 {
 	//	for _, a := range p.aggregations {
@@ -262,36 +292,55 @@ func search(ctx context.Context, esc *elasticsearch.Client, log *zap.Logger, p s
 	//	}
 	//}
 
-	//if len(p.query) == 0 && len(p.moduleAggs) == 0 && len(p.namespaceAggs) == 0 {
+	//if noQ == 0 && len(p.moduleAggs) == 0 && len(p.namespaceAggs) == 0 {
 	//	query.Query.DisMax.Queries = append(query.Query.DisMax.Queries, index)
 	//}
 	query.Aggregations = make(map[string]esSearchAggr)
-	query.Aggregations["resource"] = esSearchAggr{
+	query.Aggregations["namespace"] = esSearchAggr{
 		Terms: esSearchAggrTerm{
-			Field: "resourceType.keyword",
+			Field: "namespace.name.keyword",
 			Size:  999,
 		},
-		Aggregations: EsSearchAggrTerms{
-			"resourceName": esSearchAggr{
-				Terms: esSearchAggrTerm{
-					Field: "name.keyword",
-					Size:  999,
-				},
-			},
-			"modules": esSearchAggr{
-				Terms: esSearchAggrTerm{
-					Field: "module.name.keyword",
-					Size:  999,
-				},
-			},
-			"namespaces": esSearchAggr{
-				Terms: esSearchAggrTerm{
-					Field: "namespace.name.keyword",
-					Size:  999,
-				},
-			},
-		},
 	}
+
+	fmt.Println("len(p.namespaceAggs): ", p.namespaceAggs)
+	fmt.Println("!noNSFilter || !noQ: ", !noNSFilter || !noQ)
+	fmt.Println("!noNSFilter || !noQ 222: ", !noNSFilter, !noQ)
+	if !noNSFilter || !noQ {
+		query.Aggregations["module"] = esSearchAggr{
+			Terms: esSearchAggrTerm{
+				Field: "module.name.keyword",
+				Size:  999,
+			},
+		}
+	}
+
+	//query.Aggregations["resource"] = esSearchAggr{
+	//	Terms: esSearchAggrTerm{
+	//		Field: "resourceType.keyword",
+	//		Size:  999,
+	//	},
+	//	Aggregations: EsSearchAggrTerms{
+	//		"resourceName": esSearchAggr{
+	//			Terms: esSearchAggrTerm{
+	//				Field: "name.keyword",
+	//				Size:  999,
+	//			},
+	//		},
+	//		"modules": esSearchAggr{
+	//			Terms: esSearchAggrTerm{
+	//				Field: "module.name.keyword",
+	//				Size:  999,
+	//			},
+	//		},
+	//		"namespaces": esSearchAggr{
+	//			Terms: esSearchAggrTerm{
+	//				Field: "namespace.name.keyword",
+	//				Size:  999,
+	//			},
+	//		},
+	//	},
+	//}
 
 	// Aggregations V2.0
 	//if len(p.aggregations) > 0 {
@@ -301,6 +350,7 @@ func search(ctx context.Context, esc *elasticsearch.Client, log *zap.Logger, p s
 	if err := json.NewEncoder(&buf).Encode(query); err != nil {
 		return nil, fmt.Errorf("could not encode query: %q", err)
 	}
+	fmt.Println(">>> ", buf.String())
 
 	// Why set size to 999? default value for size is 10,
 	// so we needed to set value till we add (@todo) pagination to search result
