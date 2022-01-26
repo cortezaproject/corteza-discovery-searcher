@@ -187,6 +187,7 @@ func (h handlers) Search(w http.ResponseWriter, r *http.Request) {
 			h.log.Error("failed to send namespace request: %w", zap.Error(err))
 		}
 		if nsRes.StatusCode != http.StatusOK {
+			fmt.Println("err: ", err)
 			h.log.Error("request resulted in an unexpected status: %s", zap.Error(err))
 		}
 		if err = json.NewDecoder(nsRes.Body).Decode(&nsResponse); err != nil {
