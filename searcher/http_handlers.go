@@ -202,6 +202,45 @@ func (h handlers) Search(w http.ResponseWriter, r *http.Request) {
 		//	results.Aggregations.Namespace.Buckets = buckets
 		//}
 	}
+	// append namespace agg response which are not in es response
+	if results != nil && len(namespaceAggs) > 0 {
+		nsMap := make(map[string]struct {
+			Key      string `json:"key"`
+			DocCount int    `json:"doc_count"`
+		})
+		var bb []struct {
+			Key      string `json:"key"`
+			DocCount int    `json:"doc_count"`
+		}
+		for _, b := range results.Aggregations.Namespace.Buckets {
+			nsMap = map[string]struct {
+				Key      string `json:"key"`
+				DocCount int    `json:"doc_count"`
+			}{
+				b.Key: b,
+			}
+			bb = append(bb, b)
+		}
+
+		for _, agg := range namespaceAggs {
+			if _, ok := nsMap[agg]; !ok {
+				nsMap = map[string]struct {
+					Key      string `json:"key"`
+					DocCount int    `json:"doc_count"`
+				}{
+					agg: {Key: agg, DocCount: 0},
+				}
+				bb = append(bb, struct {
+					Key      string `json:"key"`
+					DocCount int    `json:"doc_count"`
+				}{Key: agg, DocCount: 0})
+			}
+		}
+
+		if len(bb) > 0 {
+			results.Aggregations.Namespace.Buckets = bb
+		}
+	}
 
 	mAggregation, err = search(ctx, h.esc, h.log, searchParams{
 		size:          size,
