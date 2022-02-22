@@ -1,3 +1,9 @@
+## THIS REPOSITORY IS NO LONGER MAINTAINED
+
+This is merged inside Corteza Server Discovery repository along with Corteza Discovery Indexer.
+
+For more information, check out [Corteza Server Discovery](https://github.com/cortezaproject/corteza-server-discovery).
+
 <h1 align="center">
   <img width="300px" src=".github/assets/corteza_logo.svg" />
   <br />
